@@ -5,12 +5,22 @@
 namespace {
   std::string TranslateUnit(const TextUnit& unit, std::string_view source_code) {
     std::string result = std::format (
-      "text:\"{}\",color:{},italic:{},bold:{}",
-      source_code.substr(unit.source.start, unit.source.end - unit.source.start + 1),
-      source_code.substr(unit.color.start, unit.color.end - unit.color.start + 1),
+      "text:\"{}\"",
+      Extract(source_code, unit.source)
+    );
+    
+    if (unit.color.start <= unit.color.end) {
+      result.append(std::format (
+        ",color:{}",
+        Extract(source_code, unit.color)
+      ));
+    }
+
+    result.append(std::format (
+      ",italic:{},bold:{}",
       unit.italic,
       unit.bold
-    );
+    ));
 
     if (unit.hieroglyph) {
       result.append(",font:\"minecraft:alt\"");

@@ -4,4 +4,4 @@
 
 #include <string>
 
-std::string TranslateData(const std::vector<DataUnit>& units, std::string_view text, bool item_data);
+std::string TranslateData(const std::vector<DataUnit>& units, std::string_view source_code, bool item_data);

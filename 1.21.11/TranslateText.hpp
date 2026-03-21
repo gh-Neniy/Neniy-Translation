@@ -4,4 +4,4 @@
 
 #include <string>
 
-std::string TranslateText(const Text& text, std::string_view source);
+std::string TranslateText(const Text& text, std::string_view source_code);

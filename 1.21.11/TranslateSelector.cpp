@@ -32,24 +32,24 @@ namespace {
     }
   }
 
-  std::string TranslateSelectorUnit(const SelectorUnit& unit, std::string_view text) {
+  std::string TranslateSelectorUnit(const SelectorUnit& unit, std::string_view source_code) {
     std::string result;
     result.append(TranslateSelectorUnitKey(unit.key));
     result.push_back('=');
 
     if (std::holds_alternative<BaseToken>(unit.value)) {
       auto value = std::get<BaseToken>(unit.value);
-      result.append(text.substr(value.start, value.end - value.start + 1));
+      result.append(Extract(source_code, value));
     } else {
       const auto& value = std::get<DataPtr>(unit.value);
-      result.append(TranslateData(value->units, text, false));
+      result.append(TranslateData(value->units, source_code, false));
     }
 
     return result;
   }
 }
 
-std::string TranslateSelector(const Selector& selector, std::string_view text) {
+std::string TranslateSelector(const Selector& selector, std::string_view source_code) {
   std::string result;
   result.append(TranslateSelectorType(selector.type));
 
@@ -64,7 +64,7 @@ std::string TranslateSelector(const Selector& selector, std::string_view text) {
       result.push_back(',');
     }
 
-    result.append(TranslateSelectorUnit(selector.units[i], text));
+    result.append(TranslateSelectorUnit(selector.units[i], source_code));
   }
 
   result.push_back(']');

@@ -23,6 +23,6 @@ build: $(OBJ)
 	$(CXX) $(CXXFLAGS) -shared -fPIC $^ $(HOME)/Neniy/core.so -Wl,-rpath,$(HOME)/Neniy -o $(mc_version)/impl.so
 
 clean:
-	rm -rf $(OBJ)
+	rm -rf $(OBJ) $(mc_version)/impl.so
 
 .PHONY: all build clean
