@@ -1,3 +1,4 @@
+#include "synt/Aux.hpp"
 #include "TranslateText.hpp"
 #include "TranslateData.hpp"
 

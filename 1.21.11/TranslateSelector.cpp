@@ -1,18 +1,19 @@
+#include "synt/Aux.hpp"
 #include "TranslateData.hpp"
 #include "TranslateSelector.hpp"
 
 namespace {
-  std::string TranslateSelectorType(SelectorType selector_type) {
+  std::string TranslateSelectorType(TokenType selector_type) {
     switch (selector_type) {
-      case SelectorType::All:
+      case TokenType::AllSelector:
         return "@e";
-      case SelectorType::AllPlayer:
+      case TokenType::AllPlayerSelector:
         return "@a";
-      case SelectorType::Current:
+      case TokenType::CurrentSelector:
         return "@s";
-      case SelectorType::NearestPlayer:
+      case TokenType::NearestPlayerSelector:
         return "@p";
-      case SelectorType::RandomPlayer:
+      case TokenType::RandomPlayerSelector:
         return "@r";
       default:
         throw std::logic_error("Internal translation error - unknown selector type in TranslateSelector()");

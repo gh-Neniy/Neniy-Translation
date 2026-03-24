@@ -1,3 +1,4 @@
+#include "synt/Aux.hpp"
 #include "TranslateText.hpp"
 
 #include <format>
@@ -16,12 +17,12 @@ namespace {
       ));
     }
 
-    result.append(std::format (
-      ",italic:{},bold:{}",
-      unit.italic,
-      unit.bold
-    ));
-
+    if (unit.italic) {
+      result.append(",italic:true");
+    }
+    if (unit.bold) {
+      result.append(",bold:true");
+    }
     if (unit.hieroglyph) {
       result.append(",font:\"minecraft:alt\"");
     }

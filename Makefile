@@ -1,28 +1,33 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -I$(HOME)/Neniy
+CXXFLAGS = -std=c++20 -MMD -MP -I$(HOME)/Neniy
 
 ifndef mc_version
 $(error mc_version is not set)
 endif
 
 ifeq ($(build), release)
-	CXXFLAGS += -O2
+CXXFLAGS += -O2
 else
-	CXXFLAGS += -g -fsanitize=address,undefined
+CXXFLAGS += -g -fsanitize=address,undefined
 endif
 
 SRC = $(wildcard $(mc_version)/*.cpp)
-OBJ = $(SRC:.cpp=.o)
+OBJ_DIR = object
+OBJ = $(addprefix $(OBJ_DIR)/, $(SRC:.cpp=.o))
 
-all: build
+all: $(mc_version)/impl.so
 
-%.o: %.cpp
+$(OBJ): $(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
 
-build: $(OBJ)
-	$(CXX) $(CXXFLAGS) -shared -fPIC $^ $(HOME)/Neniy/core.so -Wl,-rpath,$(HOME)/Neniy -o $(mc_version)/impl.so
+$(mc_version)/impl.so: $(OBJ)
+	$(CXX) $(CXXFLAGS) -shared -fPIC $^ $(HOME)/Neniy/core.so -Wl,-rpath,$(HOME)/Neniy -o $@
 
 clean:
-	rm -rf $(OBJ) $(mc_version)/impl.so
+	rm -f $(mc_version)/impl.so
+	rm -rf object
 
-.PHONY: all build clean
+.PHONY: all clean
+
+-include $(OBJ:.o=.d)
