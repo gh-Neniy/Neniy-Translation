@@ -1,4 +1,4 @@
-#include "synt/Aux.hpp"
+#include "Aux.hpp"
 #include "TranslateText.hpp"
 
 #include <format>
@@ -12,14 +12,12 @@ namespace {
     
     if (unit.color.start <= unit.color.end) {
       result.append(std::format (
-        ",color:{}",
-        Extract(source_code, unit.color)
+        ",color:{},italic:{}",
+        Extract(source_code, unit.color),
+        unit.italic
       ));
     }
 
-    if (unit.italic) {
-      result.append(",italic:true");
-    }
     if (unit.bold) {
       result.append(",bold:true");
     }

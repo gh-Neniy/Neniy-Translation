@@ -1,10 +1,12 @@
-#include "synt/Aux.hpp"
+#include "Aux.hpp"
 #include "TranslateText.hpp"
 #include "TranslateData.hpp"
 
 #include <format>
 
 namespace {
+  constexpr std::string_view hide_content = "tooltip_display={hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}";
+
   void AppendUnit(std::string& result, std::string_view unit_text) {
     if (!result.empty()) {
       result.push_back(',');
@@ -23,19 +25,38 @@ namespace {
     return std::format("[{}]", result);
   }
 
+  std::string TranslateCanPlaceOn(BaseToken value, std::string_view source_code) {
+    return std::format("can_place_on={{\"blocks\":\"{}\"}}", Extract(source_code, value));
+  }
+
   std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, char separator) {
     std::string result;
 
     for (int i = 0; i < units.size(); ++i) {
       switch (units[i].key) {
+        case TokenType::CanPlaceOn:
+          AppendUnit(result, TranslateCanPlaceOn(std::get<BaseToken>(units[i].value), source_code));
+          break;
+        case TokenType::Hide:
+          AppendUnit(result, hide_content);
+          break;
         case TokenType::Lore: {
           const auto& lore = std::get<std::vector<Text>>(units[i].value);
 
           AppendUnit(result, std::format("lore{}{}", separator, TranslateLore(lore, source_code)));
           break;
         }
+        case TokenType::Name: {
+          const auto& name = std::get<Text>(units[i].value);
+
+          AppendUnit(result, std::format("custom_name{}{}", separator, TranslateText(name, source_code)));
+          break;
+        }
         case TokenType::Shine:
           AppendUnit(result, std::format("enchantment_glint_override{}true", separator));
+          break;
+        case TokenType::Unbreakable:
+          AppendUnit(result, "unbreakable={}");
           break;
         default:
           throw std::runtime_error("Translation error - unknown key type in item data");

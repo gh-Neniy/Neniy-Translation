@@ -1,4 +1,4 @@
-#include "synt/Aux.hpp"
+#include "Aux.hpp"
 #include "TranslateData.hpp"
 #include "TranslateSelector.hpp"
 
@@ -24,12 +24,14 @@ namespace {
     switch (key) {
       case TokenType::Distance:
         return "distance";
+      case TokenType::Sort:
+        return "sort";
       case TokenType::Tag:
         return "tag";
       case TokenType::Team:
         return "team";
       default:
-        throw std::runtime_error("Translation error - unknown selector unit key");
+        throw std::logic_error("Internal translation error - unknown selector unit key");
     }
   }
 

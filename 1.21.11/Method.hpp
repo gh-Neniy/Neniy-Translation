@@ -5,40 +5,37 @@
 #include <string>
 
 extern "C" {
-  std::string TranslateClone(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateClone(const NodeView&);
 
-  std::string TranslateDataGet(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateData(const NodeView&);
 
-  std::string TranslateDataModify(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateExecute(const NodeView&, std::string_view function_prefix, const Loader& loader);
 
-  std::string TranslateExecute(const NodePtr& node_ptr, std::string_view source_code, std::string_view function_prefix,
-                               const Loader& loader);
+  std::string TranslateFill(const NodeView&);
 
-  std::string TranslateFill(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateFunction(const NodeView&, std::string_view function_prefix);
 
-  std::string TranslateFunction(const NodePtr& node_ptr, std::string_view source_code, std::string_view function_prefix);
+  std::string TranslateGamemode(const NodeView&);
 
-  std::string TranslateGamemode(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateGive(const NodeView&);
 
-  std::string TranslateGive(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateKill(const NodeView&);
 
-  std::string TranslateKill(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslatePlaysound(const NodeView&);
 
-  std::string TranslatePlaysound(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateSay(const NodeView&);
 
-  std::string TranslateSay(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateScoreboardObjectivesAdd(const NodeView&);
 
-  std::string TranslateScoreboardObjectivesAdd(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateScoreboardObjectivesSet(const NodeView&);
 
-  std::string TranslateScoreboardObjectivesSet(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateScoreboardPlayers(const NodeView&);
 
-  std::string TranslateScoreboardPlayers(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateSetblock(const NodeView&);
 
-  std::string TranslateSetblock(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateSummon(const NodeView&);
 
-  std::string TranslateSummon(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateTellraw(const NodeView&);
 
-  std::string TranslateTellraw(const NodePtr& node_ptr, std::string_view source_code);
-
-  std::string TranslateTp(const NodePtr& node_ptr, std::string_view source_code);
+  std::string TranslateTp(const NodeView&);
 }
