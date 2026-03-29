@@ -17,9 +17,15 @@ extern "C" {
 
   std::string TranslateGamemode(const NodeView&);
 
+  std::string TranslateGamerule(const NodeView&);
+
   std::string TranslateGive(const NodeView&);
 
   std::string TranslateKill(const NodeView&);
+
+  std::string TranslateNative(const NodeView&);
+
+  std::string TranslateParticle(const NodeView&);
 
   std::string TranslatePlaysound(const NodeView&);
 
@@ -33,7 +39,19 @@ extern "C" {
 
   std::string TranslateSetblock(const NodeView&);
 
+  std::string TranslateSpectate(const NodeView&);
+
+  std::string TranslateStopsound(const NodeView&);
+
   std::string TranslateSummon(const NodeView&);
+
+  std::string TranslateTag(const NodeView&);
+
+  std::string TranslateTeamAdd(const NodeView&);
+
+  std::string TranslateTeamJoin(const NodeView&);
+
+  std::string TranslateTeamModify(const NodeView&);
 
   std::string TranslateTellraw(const NodeView&);
 

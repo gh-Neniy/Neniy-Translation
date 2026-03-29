@@ -308,6 +308,14 @@ std::string TranslateGamemode(const NodeView& node_view) {
   return result;
 }
 
+std::string TranslateGamerule(const NodeView& node_view) {
+  return std::format(
+    "gamerule {} {}",
+    node_view.Extract(0),
+    node_view.Extract(1)
+  );
+}
+
 std::string TranslateGive(const NodeView& node_view) {
   std::string result = std::format (
     "give {}",
@@ -329,6 +337,36 @@ std::string TranslateKill(const NodeView& node_view) {
   return std::format (
     "kill {}",
     TranslateEntitySubcommand(node_view)
+  );
+}
+
+std::string TranslateNative(const NodeView& node_view) {
+  BaseToken command = node_view[0];
+  ++command.start;
+  --command.end;
+
+  return static_cast<std::string>(Extract(node_view.Source(), command));
+}
+
+std::string TranslateParticle(const NodeView& node_view) {
+  const auto& raw_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
+  std::string particle_name = static_cast<std::string>(Extract(node_view.Source(), raw_ptr->identifier));
+  if (!raw_ptr->units.empty()) {
+    particle_name.append(std::format("[{}]", TranslateData(raw_ptr->units, node_view.Source(), false)));
+  }
+
+  return std::format (
+    "particle {0} {1} {2} {3} {4} {5} {6} {7} {8} {9}",
+    particle_name,
+    node_view.Extract(0), // x
+    node_view.Extract(1), // y
+    node_view.Extract(2), // z
+    node_view.Extract(3), // dx
+    node_view.Extract(4), // dy
+    node_view.Extract(5), // dz
+    node_view.Extract(6), // speed
+    node_view.Extract(7), // count
+    node_view.Extract(8)  // mode
   );
 }
 
@@ -430,6 +468,33 @@ std::string TranslateSetblock(const NodeView& node_view) {
   );
 }
 
+std::string TranslateSpectate(const NodeView& node_view) {
+  return std::format (
+    "spectate {}",
+    TranslateEntitySubcommand(node_view)
+  );
+}
+
+std::string TranslateStopsound(const NodeView& node_view) {
+  std::string result = "stopsound ";
+  IndexType current_arg = 0;
+
+  if (node_view.size() == 2) { // with selector
+    result.append(TranslateSelector(node_view));
+  } else { // == 3, with player name
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  }
+
+  result.append(std::format(
+    " {} {}",
+    node_view.Extract(current_arg),
+    node_view.Extract(current_arg + 1)
+  ));
+
+  return result;
+}
+
 std::string TranslateSummon(const NodeView& node_view) {
   const auto& id_with_data_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
 
@@ -447,6 +512,51 @@ std::string TranslateSummon(const NodeView& node_view) {
   }
 
   return result;
+}
+
+std::string TranslateTag(const NodeView& node_view) {
+  std::string result = "tag ";
+  IndexType current_arg = 0;
+
+  if (node_view.size() == 2) { // with selector
+    result.append(TranslateSelector(node_view));
+  } else { // == 3, with player name
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  }
+
+  result.append(std::format(
+    " {} {}",
+    node_view.Extract(current_arg),
+    node_view.Extract(current_arg + 1)
+  ));
+
+  return result;
+}
+
+std::string TranslateTeamAdd(const NodeView& node_view) {
+  return std::format("team add {}", node_view.Extract(0));
+}
+
+std::string TranslateTeamJoin(const NodeView& node_view) {
+  std::string result = std::format("team join {} ", node_view.Extract(0));
+
+  if (node_view.size() == 1) { // with selector
+    result.append(TranslateSelector(node_view));
+  } else { // == 2, with entity name
+    result.append(node_view.Extract(1));
+  }
+
+  return result;
+}
+
+std::string TranslateTeamModify(const NodeView& node_view) {
+  return std::format (
+    "team modify {} {} {}",
+    node_view.Extract(0),
+    node_view.Extract(1),
+    node_view.Extract(2)
+  );
 }
 
 std::string TranslateTellraw(const NodeView& node_view) {
