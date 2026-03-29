@@ -25,17 +25,31 @@ namespace {
     return std::format("[{}]", result);
   }
 
-  std::string TranslateCanPlaceOn(BaseToken value, std::string_view source_code) {
-    return std::format("can_place_on={{\"blocks\":\"{}\"}}", Extract(source_code, value));
+  std::string TranslateCanPlaceOn(BaseToken value, std::string_view source_code, char separator) {
+    return std::format("can_place_on{}{{\"blocks\":\"{}\"}}", separator, Extract(source_code, value));
+  }
+
+  std::string TranslateEnchantments(const ListType& list, std::string_view source_code, char separator) {
+    std::string result = std::format("enchantments{}{{", separator);
+
+    for (int i = 0; i < list.size(); ++i) {
+      result.append(std::format("\"{}\":{}", Extract(source_code, list[i].key), Extract(source_code, list[i].value)));
+    }
+
+    result.push_back('}');
+    return result;
   }
 
   std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, char separator) {
     std::string result;
 
     for (int i = 0; i < units.size(); ++i) {
-      switch (units[i].key) {
+      switch (units[i].key.type) {
         case TokenType::CanPlaceOn:
-          AppendUnit(result, TranslateCanPlaceOn(std::get<BaseToken>(units[i].value), source_code));
+          AppendUnit(result, TranslateCanPlaceOn(std::get<BaseToken>(units[i].value), source_code, separator));
+          break;
+        case TokenType::Enchantments:
+          AppendUnit(result, TranslateEnchantments(std::get<ListType>(units[i].value), source_code, separator));
           break;
         case TokenType::Hide:
           AppendUnit(result, hide_content);
@@ -52,14 +66,29 @@ namespace {
           AppendUnit(result, std::format("custom_name{}{}", separator, TranslateText(name, source_code)));
           break;
         }
+        case TokenType::Potion:
+          AppendUnit(result, std::format(
+            "potion_contents{}{{potion:{}}}",
+            separator, Extract(source_code, std::get<BaseToken>(units[i].value))
+          ));
+          break;
+        case TokenType::PotionColor:
+          AppendUnit(result, std::format(
+            "potion_contents{}{{custom_color:{}}}",
+            separator, Extract(source_code, std::get<BaseToken>(units[i].value))
+          ));
+          break;
         case TokenType::Shine:
           AppendUnit(result, std::format("enchantment_glint_override{}true", separator));
+          break;
+        case TokenType::Stack:
+          AppendUnit(result, std::format("max_stack_size{}{}", separator, Extract(source_code, std::get<BaseToken>(units[i].value))));
           break;
         case TokenType::Unbreakable:
           AppendUnit(result, "unbreakable={}");
           break;
         default:
-          throw std::runtime_error("Translation error - unknown key type in item data");
+          throw std::runtime_error(std::format("Translation error - unknown key {} in item data", Extract(source_code, units[i].key)));
       }
     }
 
@@ -67,12 +96,12 @@ namespace {
   }
 
   struct Attribute {
-    TokenType key;
+    Token key;
     std::string_view value;
   };
 
   struct Equipment {
-    TokenType key;
+    Token key;
     const IdWithDataPtr& value;
   };
 
@@ -80,7 +109,7 @@ namespace {
     std::string attribute_units;
 
     for (int i = 0; i < attributes.size(); ++i) {
-      switch (attributes[i].key) {
+      switch (attributes[i].key.type) {
         case TokenType::Health:
           AppendUnit(attribute_units, std::format("{{id:\"minecraft:max_health\",base:{}}}", attributes[i].value));
           break;
@@ -92,7 +121,7 @@ namespace {
 
           break;
         default:
-          throw std::logic_error("Internal translation error - unknown attribute type");
+          throw std::logic_error(std::format("Internal translation error - unknown attribute {}", Extract(source_code, attributes[i].key)));
       }
     }
 
@@ -125,7 +154,7 @@ namespace {
     std::string result;
 
     for (int i = 0; i < equipment.size(); ++i) {
-      switch (equipment[i].key) {
+      switch (equipment[i].key.type) {
         case TokenType::Chest:
           AppendUnit(result, TranslateEquipmentUnit(equipment[i].value, "chest", source_code));
           break;
@@ -145,7 +174,9 @@ namespace {
           AppendUnit(result, TranslateEquipmentUnit(equipment[i].value, "mainhand", source_code));
           break;
         default:
-          throw std::logic_error("Internal translation error - unknown equipment key");
+          throw std::logic_error(std::format(
+            "Internal translation error - unknown equipment key {}", Extract(source_code, equipment[i].key)
+          ));
       }
     }
 
@@ -154,22 +185,22 @@ namespace {
 
   void ProcessUnit( const DataUnit& unit, std::string& result, std::vector<Attribute>& attributes,
                     std::vector<Equipment>& equipment, std::string_view source_code) {
-    switch (unit.key) {
+    switch (unit.key.type) {
       case TokenType::CanGrab:
         AppendUnit(result, "CanPickUpLoot:true");
         break;
       case TokenType::Chest:
-        equipment.emplace_back(TokenType::Chest, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Feet:
-        equipment.emplace_back(TokenType::Feet, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Head:
-        equipment.emplace_back(TokenType::Head, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Health: {
         auto points = std::get<BaseToken>(unit.value);
-        attributes.push_back({TokenType::Health, Extract(source_code, points)});
+        attributes.push_back({unit.key, Extract(source_code, points)});
 
         AppendUnit(result, std::format("Health:{}", Extract(source_code, points)));
         break;
@@ -178,10 +209,10 @@ namespace {
         AppendUnit(result, "Invulnerable:true");
         break;
       case TokenType::LeftHand:
-        equipment.emplace_back(TokenType::LeftHand, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Legs:
-        equipment.emplace_back(TokenType::Legs, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Name: {
         const auto& text = std::get<Text>(unit.value);
@@ -202,16 +233,16 @@ namespace {
         AppendUnit(result, "PersistenceRequired:true");
         break;
       case TokenType::NoKnockback:
-        attributes.emplace_back(TokenType::NoKnockback, "10.0");
+        attributes.emplace_back(unit.key, "10.0");
         break;
       case TokenType::RightHand:
-        equipment.emplace_back(TokenType::RightHand, get<IdWithDataPtr>(unit.value));
+        equipment.emplace_back(unit.key, get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::Silent:
         AppendUnit(result, "Silent:true");
         break;
       default:
-        throw std::runtime_error("Translation error - unknown key type in entity data");
+        throw std::runtime_error(std::format("Translation error - unknown key {} in entity data", Extract(source_code, unit.key)));
     }
   }
 

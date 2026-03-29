@@ -25,6 +25,7 @@ $(OBJ): $(OBJ_DIR)/%.o: %.cpp
 
 $(mc_version)/impl.so: $(OBJ) $(CORE_SO)
 	$(CXX) $(CXXFLAGS) -shared -fPIC $(OBJ) $(CORE_SO) -Wl,-rpath,$(HOME)/Neniy -o $@
+	cp $@ $(HOME)/Neniy/asset/$(mc_version)
 
 clean:
 	rm -f $(mc_version)/impl.so

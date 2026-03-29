@@ -580,17 +580,17 @@ std::string TranslateTp(const NodeView& node_view) {
     case 0: // one or two selectors
       result.append(TranslateSelector(node_view));
 
-      if (raw_ptr->second_selector.type != TokenType::Identifier) {
+      if (raw_ptr->second_selector.stem.type != TokenType::Identifier) {
         result.push_back(' ');
         result.append(TranslateSelector(raw_ptr->second_selector, node_view.Source()));
       }
       
       return result;
     case 1: // one argument is a entity name
-      if (raw_ptr->selector.type == TokenType::Identifier) {
+      if (raw_ptr->selector.stem.type == TokenType::Identifier) {
         result.append(node_view.Extract(0));
 
-        if (raw_ptr->second_selector.type != TokenType::Identifier) {
+        if (raw_ptr->second_selector.stem.type != TokenType::Identifier) {
           result.push_back(' ');
           result.append(TranslateSelector(raw_ptr->second_selector, node_view.Source()));
         }
@@ -608,7 +608,7 @@ std::string TranslateTp(const NodeView& node_view) {
 
       return result;
     case 3: // only coordinates
-      if (raw_ptr->selector.type != TokenType::Identifier) {
+      if (raw_ptr->selector.stem.type != TokenType::Identifier) {
         result.append(TranslateSelector(node_view));
         result.push_back(' ');
       }
@@ -632,7 +632,7 @@ std::string TranslateTp(const NodeView& node_view) {
 
       return result;
     case 5: // only coordinates
-      if (raw_ptr->selector.type != TokenType::Identifier) {
+      if (raw_ptr->selector.stem.type != TokenType::Identifier) {
         result.append(TranslateSelector(node_view));
         result.push_back(' ');
       }
