@@ -1,3 +1,4 @@
+#include "main/Concat.hpp"
 #include "lexic/Token.hpp"
 #include "trans/Translate.hpp"
 #include "Aux.hpp"
@@ -6,7 +7,7 @@
 #include "TranslateText.hpp"
 #include "Method.hpp"
 
-#include <format>
+using namespace std::literals;
 
 namespace {
   std::string TranslateSelector(const NodeView& node_view) {
@@ -22,47 +23,50 @@ namespace {
   }
 
   std::string TranslateExecuteAlign(const NodeView& node_view) {
-    return std::format (
-      "align {}",
+    return Concat(
+      "align "sv,
       node_view.Extract(0)
     );
   }
 
   std::string TranslateExecuteAs(const NodeView& node_view) {
-    return std::format (
-      "as {}",
-      TranslateEntitySubcommand(node_view)
+    return Concat(
+      "as "sv,
+      Sv(TranslateEntitySubcommand(node_view))
     );
   }
 
   std::string TranslateExecuteAt(const NodeView& node_view) {
-    return std::format (
-      "at {}",
-      TranslateEntitySubcommand(node_view)
+    return Concat(
+      "at "sv,
+      Sv(TranslateEntitySubcommand(node_view))
     );
   }
 
   std::string TranslateExecuteBlock(const NodeView& node_view) {
-    return std::format (
-      "{} block {} {} {} {}",
-      node_view.Type() == CommandType::ExecuteIfBlock ? "if" : "unless",
-      node_view.Extract(0), // x
-      node_view.Extract(1), // y
-      node_view.Extract(2), // z
-      node_view.Extract(3)  // block name
+    return Concat(
+      node_view.Type() == CommandType::ExecuteIfBlock ? "if"sv : "unless"sv,
+      " block "sv,
+      node_view.Extract(0), " "sv, // x
+      node_view.Extract(1), " "sv, // y
+      node_view.Extract(2), " "sv, // z
+      node_view.Extract(3)         // block name
     );
   }
 
   std::string TranslateExecuteEntity(const NodeView& node_view) {
-    return std::format (
-      "{} entity {}",
-      node_view.Type() == CommandType::ExecuteIfEntity ? "if" : "unless",
-      TranslateEntitySubcommand(node_view)
+    return Concat(
+      node_view.Type() == CommandType::ExecuteIfEntity ? "if"sv : "unless"sv,
+      " entity "sv,
+      Sv(TranslateEntitySubcommand(node_view))
     );
   }
 
   std::string TranslateExecuteScore(const NodeView& node_view) {
-    std::string result = std::format("{} score ", node_view.Type() == CommandType::ExecuteIfScore ? "if" : "unless");
+    std::string result = Concat(
+      node_view.Type() == CommandType::ExecuteIfScore ? "if"sv : "unless"sv,
+      " score "sv
+    );
 
     IndexType current_arg = 0;
 
@@ -73,21 +77,20 @@ namespace {
       ++current_arg;
     }
 
-    result.append(std::format(
-      " {} matches {}",
-      node_view.Extract(current_arg),     // objective name
-      node_view.Extract(current_arg + 1)  // points range
+    result.append(Concat(
+      " "sv, node_view.Extract(current_arg),          // objective name
+      " matches "sv, node_view.Extract(current_arg + 1) // points range
     ));
 
     return result;
   }
 
   std::string TranslateExecutePositioned(const NodeView& node_view) {
-    return std::format (
-      "positioned {} {} {}",
-      node_view.Extract(0),  // x
-      node_view.Extract(1),  // y
-      node_view.Extract(2)   // z
+    return Concat(
+      "positioned "sv,
+      node_view.Extract(0), " "sv, // x
+      node_view.Extract(1), " "sv, // y
+      node_view.Extract(2)         // z
     );
   }
 
@@ -121,11 +124,10 @@ namespace {
       ++current_arg;
     }
 
-    result.append(std::format(
-      " {} {} {}",
-      node_view.Extract(current_arg),
-      node_view.Extract(current_arg + 1),
-      node_view.Extract(current_arg + 2)
+    result.append(Concat(
+      " "sv, node_view.Extract(current_arg),
+      " "sv, node_view.Extract(current_arg + 1),
+      " "sv, node_view.Extract(current_arg + 2)
     ));
 
     return result;
@@ -146,10 +148,9 @@ namespace {
 
     std::string_view objective = node_view.Extract(current_arg);
 
-    result.append(std::format(
-      "{} {} = {} {}",
-      entity, objective,
-      entity, objective
+    result.append(Concat(
+      Sv(entity), " "sv, objective, " = "sv,
+      Sv(entity), " "sv, objective
     ));
 
     return result;
@@ -157,42 +158,41 @@ namespace {
 }
 
 std::string TranslateClone(const NodeView& node_view) {
-  return std::format (
-    "clone {} {} {} {} {} {} {} {} {} {}",
-    node_view.Extract(0),  // start x
-    node_view.Extract(1),  // start y
-    node_view.Extract(2),  // start z
-    node_view.Extract(3),  // end x
-    node_view.Extract(4),  // end y
-    node_view.Extract(5),  // end z
-    node_view.Extract(6),  // from x
-    node_view.Extract(7),  // from y
-    node_view.Extract(8),  // from z
-    node_view.Extract(9)   // mode
+  return Concat(
+    "clone "sv,
+    node_view.Extract(0), " "sv, // start x
+    node_view.Extract(1), " "sv, // start y
+    node_view.Extract(2), " "sv, // start z
+    node_view.Extract(3), " "sv, // end x
+    node_view.Extract(4), " "sv, // end y
+    node_view.Extract(5), " "sv, // end z
+    node_view.Extract(6), " "sv, // from x
+    node_view.Extract(7), " "sv, // from y
+    node_view.Extract(8), " "sv, // from z
+    node_view.Extract(9)         // mode
   );
 }
 
 std::string TranslateData(const NodeView& node_view) {
-  std::string_view mode = node_view.Type() == CommandType::DataGet ? "get" : "modify";
-  std::string result = std::format("data {} entity ", mode);
+  std::string_view mode = node_view.Type() == CommandType::DataGet ? "get"sv : "modify"sv;
+  std::string result = Concat("data "sv, mode, " entity "sv);
   IndexType current_arg = 0;
 
-  if (node_view.size() == (mode == "get" ? 2 : 4)) {
+  if (node_view.size() == (mode == "get"sv ? 2 : 4)) {
     result.append(node_view.Extract(current_arg));
     ++current_arg;
   } else {
     result.append(TranslateSelector(node_view));
   }
 
-  result.append(std::format(" {}", node_view.Extract(current_arg))); // data-field
-  if (mode == "get") {
+  result.append(Concat(" "sv, node_view.Extract(current_arg))); // data-field
+  if (mode == "get"sv) {
     return result;
   }
   
-  result.append(std::format (
-    " {} value {}",
-    node_view.Extract(current_arg + 1), // mode
-    node_view.Extract(current_arg + 2)  // value
+  result.append(Concat(
+    " "sv, node_view.Extract(current_arg + 1),      // mode
+    " value "sv, node_view.Extract(current_arg + 2) // value
   ));
 
   return result;
@@ -253,29 +253,29 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
   }
 
   NodeView main_view(execute_node_ptr->main_node, node_view.Source());
-  result.append(std::format (
-    " run {}",
-    ChooseTranslate(main_view, function_prefix, loader))
-  );
+  result.append(Concat(
+    " run "sv,
+    Sv(ChooseTranslate(main_view, function_prefix, loader))
+  ));
 
   return result;
 }
 
 std::string TranslateFill(const NodeView& node_view) {
-  std::string result = std::format (
-    "fill {} {} {} {} {} {} {} {}",
-    node_view.Extract(0),  // start x
-    node_view.Extract(1),  // start y
-    node_view.Extract(2),  // start z
-    node_view.Extract(3),  // end x
-    node_view.Extract(4),  // end y
-    node_view.Extract(5),  // end z
-    node_view.Extract(6),  // block
-    node_view.Extract(7)   // mode
+  std::string result = Concat(
+    "fill "sv,
+    node_view.Extract(0), " "sv, // start x
+    node_view.Extract(1), " "sv, // start y
+    node_view.Extract(2), " "sv, // start z
+    node_view.Extract(3), " "sv, // end x
+    node_view.Extract(4), " "sv, // end y
+    node_view.Extract(5), " "sv, // end z
+    node_view.Extract(6), " "sv, // block
+    node_view.Extract(7)         // mode
   );
 
   if (node_view.size() == 9) {
-    result.append(std::format(" {}", node_view.Extract(8)));
+    result.append(Concat(" "sv, node_view.Extract(8)));
   }
 
   return result;
@@ -285,7 +285,7 @@ std::string TranslateFunction(const NodeView& node_view, std::string_view functi
   std::string result = "function ";
 
   if (!function_prefix.empty()) {
-    result.append(std::format("{}:", function_prefix));
+    result.append(Concat(function_prefix, ":"sv));
   }
 
   result.append(node_view.Extract(0));
@@ -294,9 +294,10 @@ std::string TranslateFunction(const NodeView& node_view, std::string_view functi
 }
 
 std::string TranslateGamemode(const NodeView& node_view) {
-  std::string result = std::format (
-    "gamemode {} ",
-    node_view.Extract(0) // mode
+  std::string result = Concat(
+    "gamemode "sv,
+    node_view.Extract(0), // mode
+    " "sv
   );
 
   if (node_view.size() == 2) {
@@ -309,17 +310,17 @@ std::string TranslateGamemode(const NodeView& node_view) {
 }
 
 std::string TranslateGamerule(const NodeView& node_view) {
-  return std::format(
-    "gamerule {} {}",
-    node_view.Extract(0),
+  return Concat(
+    "gamerule "sv,
+    node_view.Extract(0), " "sv,
     node_view.Extract(1)
   );
 }
 
 std::string TranslateGive(const NodeView& node_view) {
-  std::string result = std::format (
-    "give {}",
-    TranslateEntitySubcommand(node_view)
+  std::string result = Concat(
+    "give "sv,
+    Sv(TranslateEntitySubcommand(node_view))
   );
 
   auto genuine_node_ptr = node_view.get<SelectorIdWithDataPtrNode*>();
@@ -327,16 +328,20 @@ std::string TranslateGive(const NodeView& node_view) {
   result.append(Extract(node_view.Source(), genuine_node_ptr->id_with_data_ptr->identifier));
 
   if (!genuine_node_ptr->id_with_data_ptr->units.empty()) {
-    result.append(std::format("[{}]", TranslateData(genuine_node_ptr->id_with_data_ptr->units, node_view.Source(), true)));
+    result.append(Concat(
+      "["sv,
+      Sv(TranslateData(genuine_node_ptr->id_with_data_ptr->units, node_view.Source(), true)),
+      "]"sv
+    ));
   }
 
   return result;
 }
 
 std::string TranslateKill(const NodeView& node_view) {
-  return std::format (
-    "kill {}",
-    TranslateEntitySubcommand(node_view)
+  return Concat(
+    "kill "sv,
+    Sv(TranslateEntitySubcommand(node_view))
   );
 }
 
@@ -352,30 +357,35 @@ std::string TranslateParticle(const NodeView& node_view) {
   const auto& raw_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
   std::string particle_name = static_cast<std::string>(Extract(node_view.Source(), raw_ptr->identifier));
   if (!raw_ptr->units.empty()) {
-    particle_name.append(std::format("[{}]", TranslateData(raw_ptr->units, node_view.Source(), false)));
+    particle_name.append(Concat(
+      "["sv,
+      Sv(TranslateData(raw_ptr->units, node_view.Source(), false)),
+      "]"sv
+    ));
   }
 
-  return std::format (
-    "particle {0} {1} {2} {3} {4} {5} {6} {7} {8} {9}",
-    particle_name,
-    node_view.Extract(0), // x
-    node_view.Extract(1), // y
-    node_view.Extract(2), // z
-    node_view.Extract(3), // dx
-    node_view.Extract(4), // dy
-    node_view.Extract(5), // dz
-    node_view.Extract(6), // speed
-    node_view.Extract(7), // count
-    node_view.Extract(8)  // mode
+  return Concat(
+    "particle "sv,
+    Sv(particle_name), " "sv,
+    node_view.Extract(0), " "sv, // x
+    node_view.Extract(1), " "sv, // y
+    node_view.Extract(2), " "sv, // z
+    node_view.Extract(3), " "sv, // dx
+    node_view.Extract(4), " "sv, // dy
+    node_view.Extract(5), " "sv, // dz
+    node_view.Extract(6), " "sv, // speed
+    node_view.Extract(7), " "sv, // count
+    node_view.Extract(8)         // mode
   );
 }
 
 std::string TranslatePlaysound(const NodeView& node_view) {
   IndexType current_arg = 0;
 
-  std::string result = std::format(
-    "playsound {} neutral ",
-    node_view.Extract(current_arg) // sound id
+  std::string result = Concat(
+    "playsound "sv,
+    node_view.Extract(current_arg), // sound id
+    " neutral "sv
   );
 
   ++current_arg;
@@ -386,30 +396,29 @@ std::string TranslatePlaysound(const NodeView& node_view) {
     ++current_arg;
   }
 
-  result.append(std::format (
-    " {} {} {} {} {}",
-    node_view.Extract(current_arg),      // x
-    node_view.Extract(current_arg + 1),  // y
-    node_view.Extract(current_arg + 2),  // z
-    node_view.Extract(current_arg + 3),  // volume
-    node_view.Extract(current_arg + 4)   // pitch
+  result.append(Concat(
+    " "sv, node_view.Extract(current_arg),      // x
+    " "sv, node_view.Extract(current_arg + 1),  // y
+    " "sv, node_view.Extract(current_arg + 2),  // z
+    " "sv, node_view.Extract(current_arg + 3),  // volume
+    " "sv, node_view.Extract(current_arg + 4)   // pitch
   ));
 
   return result;
 }
 
 std::string TranslateSay(const NodeView& node_view) {
-  return std::format (
-    "say {}",
+  return Concat(
+    "say "sv,
     node_view.Extract(0)
   );
 }
 
 std::string TranslateScoreboardObjectivesAdd(const NodeView& node_view) {
-  std::string result = std::format (
-    "scoreboard objectives add {} {}",
-    node_view.Extract(0),  // objective
-    node_view.Extract(1)   // objective type
+  std::string result = Concat(
+    "scoreboard objectives add "sv,
+    node_view.Extract(0), " "sv, // objective
+    node_view.Extract(1)         // objective type
   );
 
   auto genuine_node_ptr = node_view.get<TextNode*>();
@@ -425,16 +434,16 @@ std::string TranslateScoreboardObjectivesAdd(const NodeView& node_view) {
 }
 
 std::string TranslateScoreboardObjectivesSet(const NodeView& node_view) {
-  return std::format (
-    "scoreboard objectives setdisplay {} {}",
-    node_view.Extract(0), // mode
-    node_view.Extract(1)  // objective
+  return Concat(
+    "scoreboard objectives setdisplay "sv,
+    node_view.Extract(0), " "sv, // mode
+    node_view.Extract(1)         // objective
   );
 }
 
 std::string TranslateScoreboardPlayers(const NodeView& node_view) {
-  std::string result = std::format (
-    "scoreboard players {}",
+  std::string result = Concat(
+    "scoreboard players "sv,
     node_view.Extract(0) // mode
   );
 
@@ -448,30 +457,29 @@ std::string TranslateScoreboardPlayers(const NodeView& node_view) {
     ++current_argument;
   }
 
-  result.append(std::format (
-    " {} {}",
-    node_view.Extract(current_argument),    // objective
-    node_view.Extract(current_argument + 1) // points
+  result.append(Concat(
+    " "sv, node_view.Extract(current_argument),    // objective
+    " "sv, node_view.Extract(current_argument + 1) // points
   ));
 
   return result;
 }
 
 std::string TranslateSetblock(const NodeView& node_view) {
-  return std::format (
-    "setblock {} {} {} {} {}",
-    node_view.Extract(0), // block
-    node_view.Extract(1), // x
-    node_view.Extract(2), // y
-    node_view.Extract(3), // z
-    node_view.Extract(4)  // mode
+  return Concat(
+    "setblock "sv,
+    node_view.Extract(0), " "sv, // block
+    node_view.Extract(1), " "sv, // x
+    node_view.Extract(2), " "sv, // y
+    node_view.Extract(3), " "sv, // z
+    node_view.Extract(4)         // mode
   );
 }
 
 std::string TranslateSpectate(const NodeView& node_view) {
-  return std::format (
-    "spectate {}",
-    TranslateEntitySubcommand(node_view)
+  return Concat(
+    "spectate "sv,
+    Sv(TranslateEntitySubcommand(node_view))
   );
 }
 
@@ -486,10 +494,9 @@ std::string TranslateStopsound(const NodeView& node_view) {
     ++current_arg;
   }
 
-  result.append(std::format(
-    " {} {}",
-    node_view.Extract(current_arg),
-    node_view.Extract(current_arg + 1)
+  result.append(Concat(
+    " "sv, node_view.Extract(current_arg),
+    " "sv, node_view.Extract(current_arg + 1)
   ));
 
   return result;
@@ -498,17 +505,21 @@ std::string TranslateStopsound(const NodeView& node_view) {
 std::string TranslateSummon(const NodeView& node_view) {
   const auto& id_with_data_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
 
-  std::string result = std::format (
-    "summon {} {} {} {}",
-    Extract(node_view.Source(), id_with_data_ptr->identifier), // entity name
-    node_view.Extract(0), // x
-    node_view.Extract(1), // y
-    node_view.Extract(2)  // z
+  std::string result = Concat(
+    "summon "sv,
+    Extract(node_view.Source(), id_with_data_ptr->identifier), " "sv, // entity name
+    node_view.Extract(0), " "sv, // x
+    node_view.Extract(1), " "sv, // y
+    node_view.Extract(2)         // z
   );
 
   if (!id_with_data_ptr->units.empty()) {
     result.push_back(' ');
-    result.append(std::format("{{{}}}", TranslateData(id_with_data_ptr->units, node_view.Source(), false)));
+    result.append(Concat(
+      "{"sv,
+      Sv(TranslateData(id_with_data_ptr->units, node_view.Source(), false)),
+      "}"sv
+    ));
   }
 
   return result;
@@ -525,21 +536,20 @@ std::string TranslateTag(const NodeView& node_view) {
     ++current_arg;
   }
 
-  result.append(std::format(
-    " {} {}",
-    node_view.Extract(current_arg),
-    node_view.Extract(current_arg + 1)
+  result.append(Concat(
+    " "sv, node_view.Extract(current_arg),
+    " "sv, node_view.Extract(current_arg + 1)
   ));
 
   return result;
 }
 
 std::string TranslateTeamAdd(const NodeView& node_view) {
-  return std::format("team add {}", node_view.Extract(0));
+  return Concat("team add "sv, node_view.Extract(0));
 }
 
 std::string TranslateTeamJoin(const NodeView& node_view) {
-  std::string result = std::format("team join {} ", node_view.Extract(0));
+  std::string result = Concat("team join "sv, node_view.Extract(0), " "sv);
 
   if (node_view.size() == 1) { // with selector
     result.append(TranslateSelector(node_view));
@@ -551,18 +561,18 @@ std::string TranslateTeamJoin(const NodeView& node_view) {
 }
 
 std::string TranslateTeamModify(const NodeView& node_view) {
-  return std::format (
-    "team modify {} {} {}",
-    node_view.Extract(0),
-    node_view.Extract(1),
+  return Concat(
+    "team modify "sv,
+    node_view.Extract(0), " "sv,
+    node_view.Extract(1), " "sv,
     node_view.Extract(2)
   );
 }
 
 std::string TranslateTellraw(const NodeView& node_view) {
-  std::string result = std::format (
-    "tellraw {}",
-    TranslateEntitySubcommand(node_view)
+  std::string result = Concat(
+    "tellraw "sv,
+    Sv(TranslateEntitySubcommand(node_view))
   );
 
   result.push_back(' ');
@@ -595,14 +605,13 @@ std::string TranslateTp(const NodeView& node_view) {
           result.append(TranslateSelector(raw_ptr->second_selector, node_view.Source()));
         }
       } else {
-        result.append(std::format("{} {}", TranslateSelector(node_view), node_view.Extract(0)));
+        result.append(Concat(Sv(TranslateSelector(node_view)), " "sv, node_view.Extract(0)));
       }
 
       return result;
     case 2: // both arguments are entity names
-      result.append(std::format(
-        "{} {}",
-        node_view.Extract(0),
+      result.append(Concat(
+        node_view.Extract(0), " "sv,
         node_view.Extract(1)
       ));  
 
@@ -613,20 +622,18 @@ std::string TranslateTp(const NodeView& node_view) {
         result.push_back(' ');
       }
 
-      result.append(std::format (
-        "{} {} {}",
-        node_view.Extract(0),
-        node_view.Extract(1),
+      result.append(Concat(
+        node_view.Extract(0), " "sv,
+        node_view.Extract(1), " "sv,
         node_view.Extract(2)
       ));
 
       return result;
     case 4: // one entity name and coordinates
-      result.append(std::format(
-        "{} {} {} {}",
-        node_view.Extract(0),
-        node_view.Extract(1),
-        node_view.Extract(2),
+      result.append(Concat(
+        node_view.Extract(0), " "sv,
+        node_view.Extract(1), " "sv,
+        node_view.Extract(2), " "sv,
         node_view.Extract(3)
       ));
 
@@ -637,29 +644,27 @@ std::string TranslateTp(const NodeView& node_view) {
         result.push_back(' ');
       }
 
-      result.append(std::format(
-        "{} {} {} {} {}",
-        node_view.Extract(0),
-        node_view.Extract(1),
-        node_view.Extract(2),
-        node_view.Extract(3),
+      result.append(Concat(
+        node_view.Extract(0), " "sv,
+        node_view.Extract(1), " "sv,
+        node_view.Extract(2), " "sv,
+        node_view.Extract(3), " "sv,
         node_view.Extract(4)
       ));
 
       return result;
     case 6: // one entity name and 5 coordinates
-      result.append(std::format(
-        "{} {} {} {} {} {}",
-        node_view.Extract(0),
-        node_view.Extract(1),
-        node_view.Extract(2),
-        node_view.Extract(3),
-        node_view.Extract(4),
+      result.append(Concat(
+        node_view.Extract(0), " "sv,
+        node_view.Extract(1), " "sv,
+        node_view.Extract(2), " "sv,
+        node_view.Extract(3), " "sv,
+        node_view.Extract(4), " "sv,
         node_view.Extract(5)
       ));
 
       return result;
     default:
-      throw std::logic_error("Internal translation error - imposible case reached in TranslateTp()");
+      throw std::logic_error("Internal translation error - impossible case reached in TranslateTp()");
   }
 }

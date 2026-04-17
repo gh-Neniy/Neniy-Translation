@@ -1,20 +1,21 @@
+#include "main/Concat.hpp"
 #include "Aux.hpp"
 #include "TranslateText.hpp"
 
-#include <format>
+using namespace std::literals;
 
 namespace {
   std::string TranslateUnit(const TextUnit& unit, std::string_view source_code) {
-    std::string result = std::format (
-      "text:\"{}\"",
-      Extract(source_code, unit.source)
+    std::string result = Concat(
+      "text:\""sv,
+      Extract(source_code, unit.source),
+      "\""sv
     );
     
     if (unit.color.start <= unit.color.end) {
-      result.append(std::format (
-        ",color:{},italic:{}",
-        Extract(source_code, unit.color),
-        unit.italic
+      result.append(Concat(
+        ",color:"sv, Extract(source_code, unit.color),
+        ",italic:"sv, unit.italic ? "true"sv : "false"sv
       ));
     }
 
@@ -34,7 +35,7 @@ std::string TranslateText(const Text& text, std::string_view source_code) {
     return "{text:\"\"}";
   }
 
-  std::string result = std::format("{{{}", TranslateUnit(text.units[0], source_code));
+  std::string result = Concat("{"sv, Sv(TranslateUnit(text.units[0], source_code)));
   
   if (text.units.size() == 1) {
     result.push_back('}');
@@ -48,7 +49,7 @@ std::string TranslateText(const Text& text, std::string_view source_code) {
       result.push_back(',');
     }
 
-    result.append(std::format("{{{}}}", TranslateUnit(text.units[i], source_code)));
+    result.append(Concat("{"sv, Sv(TranslateUnit(text.units[i], source_code)), "}"sv));
   }
 
   result.append("]}");

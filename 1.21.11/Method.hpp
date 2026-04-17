@@ -1,6 +1,7 @@
 #pragma once
 
-#include "synt/Node.hpp"
+#include "asset/Loader.hpp"
+#include "trans/NodeView.hpp"
 
 #include <string>
 

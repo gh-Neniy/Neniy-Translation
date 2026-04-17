@@ -1,8 +1,9 @@
+#include "main/Concat.hpp"
 #include "Aux.hpp"
 #include "TranslateText.hpp"
 #include "TranslateData.hpp"
 
-#include <format>
+using namespace std::literals;
 
 namespace {
   constexpr std::string_view hide_content = "tooltip_display={hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}";
@@ -22,25 +23,31 @@ namespace {
       AppendUnit(result, TranslateText(lore[i], source_code));
     }
 
-    return std::format("[{}]", result);
+    return Concat("["sv, Sv(result), "]"sv);
   }
 
-  std::string TranslateCanPlaceOn(BaseToken value, std::string_view source_code, char separator) {
-    return std::format("can_place_on{}{{\"blocks\":\"{}\"}}", separator, Extract(source_code, value));
+  std::string TranslateCanPlaceOn(BaseToken value, std::string_view source_code, std::string_view separator) {
+    return Concat("can_place_on"sv, separator, "{\"blocks\":\""sv, Extract(source_code, value), "\"}"sv);
   }
 
-  std::string TranslateEnchantments(const ListType& list, std::string_view source_code, char separator) {
-    std::string result = std::format("enchantments{}{{", separator);
+  std::string TranslateEnchantments(const ListType& list, std::string_view source_code, std::string_view separator) {
+    std::string result = Concat("enchantments"sv, separator, "{"sv);
 
     for (int i = 0; i < list.size(); ++i) {
-      result.append(std::format("\"{}\":{}", Extract(source_code, list[i].key), Extract(source_code, list[i].value)));
+      if (i > 0) {
+        result.push_back(',');
+      }
+
+      result.append(Concat(
+        "\""sv, Extract(source_code, list[i].key), "\":"sv, Extract(source_code, list[i].value)
+      ));
     }
 
     result.push_back('}');
     return result;
   }
 
-  std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, char separator) {
+  std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator) {
     std::string result;
 
     for (int i = 0; i < units.size(); ++i) {
@@ -57,38 +64,38 @@ namespace {
         case TokenType::Lore: {
           const auto& lore = std::get<std::vector<Text>>(units[i].value);
 
-          AppendUnit(result, std::format("lore{}{}", separator, TranslateLore(lore, source_code)));
+          AppendUnit(result, Concat("lore"sv, separator, Sv(TranslateLore(lore, source_code))));
           break;
         }
         case TokenType::Name: {
           const auto& name = std::get<Text>(units[i].value);
 
-          AppendUnit(result, std::format("custom_name{}{}", separator, TranslateText(name, source_code)));
+          AppendUnit(result, Concat("custom_name"sv, separator, Sv(TranslateText(name, source_code))));
           break;
         }
         case TokenType::Potion:
-          AppendUnit(result, std::format(
-            "potion_contents{}{{potion:{}}}",
-            separator, Extract(source_code, std::get<BaseToken>(units[i].value))
+          AppendUnit(result, Concat(
+            "potion_contents"sv, separator,
+            "{potion:"sv, Extract(source_code, std::get<BaseToken>(units[i].value)), "}"sv
           ));
           break;
         case TokenType::PotionColor:
-          AppendUnit(result, std::format(
-            "potion_contents{}{{custom_color:{}}}",
-            separator, Extract(source_code, std::get<BaseToken>(units[i].value))
+          AppendUnit(result, Concat(
+            "potion_contents"sv, separator,
+            "{custom_color:"sv, Extract(source_code, std::get<BaseToken>(units[i].value)), "}"sv
           ));
           break;
         case TokenType::Shine:
-          AppendUnit(result, std::format("enchantment_glint_override{}true", separator));
+          AppendUnit(result, Concat("enchantment_glint_override"sv, separator, "true"sv));
           break;
         case TokenType::Stack:
-          AppendUnit(result, std::format("max_stack_size{}{}", separator, Extract(source_code, std::get<BaseToken>(units[i].value))));
+          AppendUnit(result, Concat("max_stack_size"sv, separator, Extract(source_code, std::get<BaseToken>(units[i].value))));
           break;
         case TokenType::Unbreakable:
           AppendUnit(result, "unbreakable={}");
           break;
         default:
-          throw std::runtime_error(std::format("Translation error - unknown key {} in item data", Extract(source_code, units[i].key)));
+          throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, units[i].key), " in item data"sv));
       }
     }
 
@@ -111,31 +118,33 @@ namespace {
     for (int i = 0; i < attributes.size(); ++i) {
       switch (attributes[i].key.type) {
         case TokenType::Health:
-          AppendUnit(attribute_units, std::format("{{id:\"minecraft:max_health\",base:{}}}", attributes[i].value));
+          AppendUnit(attribute_units, Concat("{id:\"minecraft:max_health\",base:"sv, attributes[i].value, "}"sv));
           break;
         case TokenType::NoKnockback:
-          AppendUnit(attribute_units, std::format (
-            "{{id:\"minecraft:knockback_resistance\",base:{}}}",
-            attributes[i].value
+          AppendUnit(attribute_units, Concat(
+            "{id:\"minecraft:knockback_resistance\",base:"sv,
+            attributes[i].value,
+            "}"sv
           ));
 
           break;
         default:
-          throw std::logic_error(std::format("Internal translation error - unknown attribute {}", Extract(source_code, attributes[i].key)));
+          throw std::logic_error(Concat("Internal translation error - unknown attribute "sv, Extract(source_code, attributes[i].key)));
       }
     }
 
-    return std::format("equipment:{{{}}}", attribute_units);
+    return Concat("equipment:{"sv, Sv(attribute_units), "}"sv);
   }
 
   std::string TranslateEquipmentUnit( const IdWithDataPtr& id_with_data_ptr, std::string_view unit_name,
                                       std::string_view source_code) {
     const auto& data_units = id_with_data_ptr->units;
 
-    std::string equipment_unit = std::format (
-      "{}:{{id:\"{}\"",
+    std::string equipment_unit = Concat(
       unit_name,
-      Extract(source_code, id_with_data_ptr->identifier)
+      ":{id:\""sv,
+      Extract(source_code, id_with_data_ptr->identifier),
+      "\""sv
     );
 
     if (data_units.empty()) {
@@ -144,7 +153,7 @@ namespace {
     }
     
     equipment_unit.append(",components:{");
-    equipment_unit.append(TranslateItemData(data_units, source_code,':'));
+    equipment_unit.append(TranslateItemData(data_units, source_code, ":"sv));
     equipment_unit.append("}}");
 
     return equipment_unit;
@@ -174,13 +183,13 @@ namespace {
           AppendUnit(result, TranslateEquipmentUnit(equipment[i].value, "mainhand", source_code));
           break;
         default:
-          throw std::logic_error(std::format(
-            "Internal translation error - unknown equipment key {}", Extract(source_code, equipment[i].key)
+          throw std::logic_error(Concat(
+            "Internal translation error - unknown equipment key "sv, Extract(source_code, equipment[i].key)
           ));
       }
     }
 
-    return std::format("equipment:{{{}}}", result);
+    return Concat("equipment:{"sv, Sv(result), "}"sv);
   }
 
   void ProcessUnit( const DataUnit& unit, std::string& result, std::vector<Attribute>& attributes,
@@ -202,7 +211,7 @@ namespace {
         auto points = std::get<BaseToken>(unit.value);
         attributes.push_back({unit.key, Extract(source_code, points)});
 
-        AppendUnit(result, std::format("Health:{}", Extract(source_code, points)));
+        AppendUnit(result, Concat("Health:"sv, Extract(source_code, points)));
         break;
       }
       case TokenType::Invulnerable:
@@ -217,13 +226,13 @@ namespace {
       case TokenType::Name: {
         const auto& text = std::get<Text>(unit.value);
 
-        AppendUnit(result, std::format("CustomName:{}", TranslateText(text, source_code)));
+        AppendUnit(result, Concat("CustomName:"sv, Sv(TranslateText(text, source_code))));
         break;
       }
       case TokenType::NameVisible: {
         auto value = std::get<BaseToken>(unit.value);
 
-        AppendUnit(result, std::format("CustomNameVisible:{}", Extract(source_code, value)));
+        AppendUnit(result, Concat("CustomNameVisible:"sv, Extract(source_code, value)));
         break;
       }
       case TokenType::NoAI:
@@ -242,7 +251,7 @@ namespace {
         AppendUnit(result, "Silent:true");
         break;
       default:
-        throw std::runtime_error(std::format("Translation error - unknown key {} in entity data", Extract(source_code, unit.key)));
+        throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in entity data"sv));
     }
   }
 
@@ -270,7 +279,7 @@ namespace {
 // without braces
 std::string TranslateData(const std::vector<DataUnit>& units, std::string_view text, bool item_data) {
   if (item_data) {
-    return TranslateItemData(units, text, '=');
+    return TranslateItemData(units, text, "="sv);
   }
   return TranslateEntityData(units, text);
 }

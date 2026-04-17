@@ -2,8 +2,6 @@
 #include "TranslateData.hpp"
 #include "TranslateSelector.hpp"
 
-#include <format>
-
 namespace {
   std::string TranslateSelectorUnit(const SelectorUnit& unit, std::string_view source_code) {
     std::string result;
