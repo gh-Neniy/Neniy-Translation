@@ -14,12 +14,20 @@ namespace {
     return TranslateSelector(node_view.get<SelectorNode*>()->selector, node_view.Source());
   }
 
-  std::string TranslateEntitySubcommand(const NodeView& node_view) {
-    if (node_view.empty()) { // with selector
+  std::string TranslateDataIfExists(const std::vector<DataUnit>& data_units, std::string_view source_code, bool item_data) {
+    if (data_units.empty()) {
+      return "";
+    }
+
+    return Concat("["sv, Sv(TranslateData(data_units, source_code, item_data)), "]"sv);
+  }
+
+  std::string TranslateEntitySubcommand(const NodeView& node_view, IndexType entity_pos) {
+    if (entity_pos >= node_view.size()) { // with selector
       return TranslateSelector(node_view);
     }
     
-    return static_cast<std::string>(node_view.Extract(0));
+    return static_cast<std::string>(node_view.Extract(entity_pos));
   }
 
   std::string TranslateExecuteAlign(const NodeView& node_view) {
@@ -32,47 +40,52 @@ namespace {
   std::string TranslateExecuteAs(const NodeView& node_view) {
     return Concat(
       "as "sv,
-      Sv(TranslateEntitySubcommand(node_view))
+      Sv(TranslateEntitySubcommand(node_view, 0))
     );
   }
 
   std::string TranslateExecuteAt(const NodeView& node_view) {
     return Concat(
       "at "sv,
-      Sv(TranslateEntitySubcommand(node_view))
+      Sv(TranslateEntitySubcommand(node_view, 0))
     );
   }
 
   std::string TranslateExecuteBlock(const NodeView& node_view) {
-    return Concat(
-      node_view.Type() == CommandType::ExecuteIfBlock ? "if"sv : "unless"sv,
+    const auto& id_with_data_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
+
+    return Concat (
+      node_view.Extract(0), // if | unless
       " block "sv,
-      node_view.Extract(0), " "sv, // x
-      node_view.Extract(1), " "sv, // y
-      node_view.Extract(2), " "sv, // z
-      node_view.Extract(3)         // block name
+      node_view.Extract(1), " "sv, // x
+      node_view.Extract(2), " "sv, // y
+      node_view.Extract(3), " "sv, // z
+      Sv(Concat (
+        Extract(node_view.Source(), id_with_data_ptr->identifier), // block name
+        Sv(TranslateDataIfExists(id_with_data_ptr->units, node_view.Source(), false))
+      ))
     );
   }
 
   std::string TranslateExecuteEntity(const NodeView& node_view) {
     return Concat(
-      node_view.Type() == CommandType::ExecuteIfEntity ? "if"sv : "unless"sv,
+      node_view.Extract(0),
       " entity "sv,
-      Sv(TranslateEntitySubcommand(node_view))
+      Sv(TranslateEntitySubcommand(node_view, 1))
     );
   }
 
   std::string TranslateExecuteScore(const NodeView& node_view) {
     std::string result = Concat(
-      node_view.Type() == CommandType::ExecuteIfScore ? "if"sv : "unless"sv,
+      node_view.Extract(0),
       " score "sv
     );
 
-    IndexType current_arg = 0;
+    IndexType current_arg = 1;
 
-    if (node_view.size() == 2) { // with selector
+    if (node_view.size() == 3) { // with selector
       result.append(TranslateSelector(node_view));
-    } else { // == 3, with entity name
+    } else { // == 4, with entity name
       result.append(node_view.Extract(current_arg));
       ++current_arg;
     }
@@ -217,13 +230,13 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
       case CommandType::ExecuteAt:
         result.append(TranslateExecuteAt(subnode_view));
         break;
-      case CommandType::ExecuteIfBlock:
+      case CommandType::ExecuteBlock:
         result.append(TranslateExecuteBlock(subnode_view));
         break;
-      case CommandType::ExecuteIfEntity:
+      case CommandType::ExecuteEntity:
         result.append(TranslateExecuteEntity(subnode_view));
         break;
-      case CommandType::ExecuteIfScore:
+      case CommandType::ExecuteScore:
         result.append(TranslateExecuteScore(subnode_view));
         break;
       case CommandType::ExecutePositioned:
@@ -237,15 +250,6 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
         break;
       case CommandType::ExecuteUninited:
         result.append(TranslateExecuteUninited(subnode_view));
-        break;
-      case CommandType::ExecuteUnlessBlock:
-        result.append(TranslateExecuteBlock(subnode_view));
-        break;
-      case CommandType::ExecuteUnlessEntity:
-        result.append(TranslateExecuteEntity(subnode_view));
-        break;
-      case CommandType::ExecuteUnlessScore:
-        result.append(TranslateExecuteScore(subnode_view));
         break;
       default:
         throw std::logic_error("Internal translation error - unknown execute subcommand type");
@@ -320,7 +324,7 @@ std::string TranslateGamerule(const NodeView& node_view) {
 std::string TranslateGive(const NodeView& node_view) {
   std::string result = Concat(
     "give "sv,
-    Sv(TranslateEntitySubcommand(node_view))
+    Sv(TranslateEntitySubcommand(node_view, 0))
   );
 
   auto genuine_node_ptr = node_view.get<SelectorIdWithDataPtrNode*>();
@@ -341,7 +345,7 @@ std::string TranslateGive(const NodeView& node_view) {
 std::string TranslateKill(const NodeView& node_view) {
   return Concat(
     "kill "sv,
-    Sv(TranslateEntitySubcommand(node_view))
+    Sv(TranslateEntitySubcommand(node_view, 0))
   );
 }
 
@@ -466,20 +470,25 @@ std::string TranslateScoreboardPlayers(const NodeView& node_view) {
 }
 
 std::string TranslateSetblock(const NodeView& node_view) {
+  const auto& id_with_data_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
+
   return Concat(
     "setblock "sv,
-    node_view.Extract(0), " "sv, // block
-    node_view.Extract(1), " "sv, // x
-    node_view.Extract(2), " "sv, // y
-    node_view.Extract(3), " "sv, // z
-    node_view.Extract(4)         // mode
+    Sv(Concat (
+      Extract(node_view.Source(), id_with_data_ptr->identifier), // block name
+      Sv(TranslateDataIfExists(id_with_data_ptr->units, node_view.Source(), false))
+    )), " "sv,
+    node_view.Extract(0), " "sv, // x
+    node_view.Extract(1), " "sv, // y
+    node_view.Extract(2), " "sv, // z
+    node_view.Extract(3)         // mode
   );
 }
 
 std::string TranslateSpectate(const NodeView& node_view) {
   return Concat(
     "spectate "sv,
-    Sv(TranslateEntitySubcommand(node_view))
+    Sv(TranslateEntitySubcommand(node_view, 0))
   );
 }
 
@@ -572,7 +581,7 @@ std::string TranslateTeamModify(const NodeView& node_view) {
 std::string TranslateTellraw(const NodeView& node_view) {
   std::string result = Concat(
     "tellraw "sv,
-    Sv(TranslateEntitySubcommand(node_view))
+    Sv(TranslateEntitySubcommand(node_view, 0))
   );
 
   result.push_back(' ');
