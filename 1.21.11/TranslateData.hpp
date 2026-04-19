@@ -4,4 +4,12 @@
 
 #include <string>
 
-std::string TranslateData(const std::vector<DataUnit>& units, std::string_view source_code, bool item_data);
+// All functions return data without braces
+
+std::string TranslateBlockData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator);
+
+std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code);
+
+std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator);
+
+std::string TranslateParticleData(const std::vector<DataUnit>& units, std::string_view source_code);

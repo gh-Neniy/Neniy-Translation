@@ -14,12 +14,12 @@ namespace {
     return TranslateSelector(node_view.get<SelectorNode*>()->selector, node_view.Source());
   }
 
-  std::string TranslateDataIfExists(const std::vector<DataUnit>& data_units, std::string_view source_code, bool item_data) {
+  std::string TranslateBlockDataIfExists(const std::vector<DataUnit>& data_units, std::string_view source_code) {
     if (data_units.empty()) {
       return "";
     }
 
-    return Concat("["sv, Sv(TranslateData(data_units, source_code, item_data)), "]"sv);
+    return Concat("["sv, Sv(TranslateBlockData(data_units, source_code, "=")), "]"sv);
   }
 
   std::string TranslateEntitySubcommand(const NodeView& node_view, IndexType entity_pos) {
@@ -61,18 +61,46 @@ namespace {
       node_view.Extract(2), " "sv, // y
       node_view.Extract(3), " "sv, // z
       Sv(Concat (
-        Extract(node_view.Source(), id_with_data_ptr->identifier), // block name
-        Sv(TranslateDataIfExists(id_with_data_ptr->units, node_view.Source(), false))
+        Extract(node_view.Source(), id_with_data_ptr->identifier), // block
+        Sv(TranslateBlockDataIfExists(id_with_data_ptr->units, node_view.Source()))
       ))
     );
   }
 
   std::string TranslateExecuteEntity(const NodeView& node_view) {
     return Concat(
-      node_view.Extract(0),
+      node_view.Extract(0), // condition
       " entity "sv,
       Sv(TranslateEntitySubcommand(node_view, 1))
     );
+  }
+
+  std::string TranslateExecuteItemsBlock(const NodeView& node_view) {
+    return Concat (
+      node_view.Extract(0),         // condition
+      " items block ~ ~ ~ "sv,
+      node_view.Extract(1), " "sv,  // container
+      node_view.Extract(2)          // item name
+    );
+  }
+
+  std::string TranslateExecuteItemsEntity(const NodeView& node_view) {
+    std::string result = Concat(node_view.Extract(0), " items entity "sv);
+    IndexType current_arg = 1;
+
+    if (node_view.size() == 3) { // with selector
+      result.append(TranslateSelector(node_view));
+    } else {
+      result.append(node_view.Extract(current_arg));
+      ++current_arg;
+    }
+
+    result.push_back(' ');
+    result.append(node_view.Extract(current_arg)); // container
+    result.push_back(' ');
+    result.append(node_view.Extract(current_arg + 1)); // item name
+
+    return result;
   }
 
   std::string TranslateExecuteScore(const NodeView& node_view) {
@@ -170,6 +198,23 @@ namespace {
   }
 }
 
+std::string TranslateClear(const NodeView& node_view) {
+  std::string result = "clear ";
+  IndexType current_arg = 0;
+  
+  if (node_view.size() == 1) { // with selector
+    result.append(TranslateSelector(node_view));
+  } else {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  }
+
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg));
+
+  return result;
+}
+
 std::string TranslateClone(const NodeView& node_view) {
   return Concat(
     "clone "sv,
@@ -184,6 +229,24 @@ std::string TranslateClone(const NodeView& node_view) {
     node_view.Extract(8), " "sv, // from z
     node_view.Extract(9)         // mode
   );
+}
+
+std::string TranslateDamage(const NodeView& node_view) {
+  std::string result = "damage ";
+  IndexType current_arg = 0;
+
+  if (node_view.size() == 2) { // with entity name
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  } else {
+    result.append(TranslateSelector(node_view));
+  }
+
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg));
+  result.append(" generic_kill");
+
+  return result;
 }
 
 std::string TranslateData(const NodeView& node_view) {
@@ -207,6 +270,38 @@ std::string TranslateData(const NodeView& node_view) {
     " "sv, node_view.Extract(current_arg + 1),      // mode
     " value "sv, node_view.Extract(current_arg + 2) // value
   ));
+
+  return result;
+}
+
+std::string TranslateEffect(const NodeView& node_view) {
+  std::string result = "effect ";
+  std::string_view mode = node_view.Extract(0);
+
+  result.append(mode);
+  result.push_back(' ');
+  
+  IndexType current_arg = 1;
+
+  if (node_view.size() == (mode == "clear" ? 3 : 5)) {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  } else { // == 2 or 4
+    result.append(TranslateSelector(node_view));
+  }
+
+  // current_arg on effect id
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg));
+
+  if (mode == "clear") {
+    return result;
+  }
+
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg + 1)); // duration
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg + 2)); // amplifier
 
   return result;
 }
@@ -235,6 +330,12 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
         break;
       case CommandType::ExecuteEntity:
         result.append(TranslateExecuteEntity(subnode_view));
+        break;
+      case CommandType::ExecuteItemsBlock:
+        result.append(TranslateExecuteItemsBlock(subnode_view));
+        break;
+      case CommandType::ExecuteItemsEntity:
+        result.append(TranslateExecuteItemsEntity(subnode_view));
         break;
       case CommandType::ExecuteScore:
         result.append(TranslateExecuteScore(subnode_view));
@@ -334,7 +435,7 @@ std::string TranslateGive(const NodeView& node_view) {
   if (!genuine_node_ptr->id_with_data_ptr->units.empty()) {
     result.append(Concat(
       "["sv,
-      Sv(TranslateData(genuine_node_ptr->id_with_data_ptr->units, node_view.Source(), true)),
+      Sv(TranslateItemData(genuine_node_ptr->id_with_data_ptr->units, node_view.Source(), "=")),
       "]"sv
     ));
   }
@@ -363,7 +464,7 @@ std::string TranslateParticle(const NodeView& node_view) {
   if (!raw_ptr->units.empty()) {
     particle_name.append(Concat(
       "["sv,
-      Sv(TranslateData(raw_ptr->units, node_view.Source(), false)),
+      Sv(TranslateParticleData(raw_ptr->units, node_view.Source())),
       "]"sv
     ));
   }
@@ -475,14 +576,36 @@ std::string TranslateSetblock(const NodeView& node_view) {
   return Concat(
     "setblock "sv,
     Sv(Concat (
-      Extract(node_view.Source(), id_with_data_ptr->identifier), // block name
-      Sv(TranslateDataIfExists(id_with_data_ptr->units, node_view.Source(), false))
+      Extract(node_view.Source(), id_with_data_ptr->identifier), // block
+      Sv(TranslateBlockDataIfExists(id_with_data_ptr->units, node_view.Source()))
     )), " "sv,
     node_view.Extract(0), " "sv, // x
     node_view.Extract(1), " "sv, // y
     node_view.Extract(2), " "sv, // z
     node_view.Extract(3)         // mode
   );
+}
+
+std::string TranslateSpawnpoint(const NodeView& node_view) {
+  std::string result = "spawnpoint ";
+  IndexType current_arg = 0;
+
+  if (node_view.size() == 3) { // with selector
+    result.append(TranslateSelector(node_view));
+  } else {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  }
+
+  result.push_back(' ');
+  
+  result.append(Concat(
+    node_view.Extract(current_arg), " "sv,
+    node_view.Extract(current_arg + 1), " "sv,
+    node_view.Extract(current_arg + 2)
+  ));
+
+  return result;
 }
 
 std::string TranslateSpectate(const NodeView& node_view) {
@@ -496,17 +619,15 @@ std::string TranslateStopsound(const NodeView& node_view) {
   std::string result = "stopsound ";
   IndexType current_arg = 0;
 
-  if (node_view.size() == 2) { // with selector
+  if (node_view.size() == 1) { // with selector
     result.append(TranslateSelector(node_view));
-  } else { // == 3, with player name
+  } else { // == 2, with player name
     result.append(node_view.Extract(current_arg));
     ++current_arg;
   }
 
-  result.append(Concat(
-    " "sv, node_view.Extract(current_arg),
-    " "sv, node_view.Extract(current_arg + 1)
-  ));
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg)); // sound id
 
   return result;
 }
@@ -526,7 +647,7 @@ std::string TranslateSummon(const NodeView& node_view) {
     result.push_back(' ');
     result.append(Concat(
       "{"sv,
-      Sv(TranslateData(id_with_data_ptr->units, node_view.Source(), false)),
+      Sv(TranslateEntityData(id_with_data_ptr->units, node_view.Source())),
       "}"sv
     ));
   }
@@ -588,6 +709,14 @@ std::string TranslateTellraw(const NodeView& node_view) {
   result.append(TranslateText(node_view.get<SelectorTextNode*>()->text, node_view.Source()));
 
   return result;
+}
+
+std::string TranslateTime(const NodeView& node_view) {
+  return Concat(
+    "time "sv,
+    node_view.Extract(0), " "sv,  // mode
+    node_view.Extract(1)          // value
+  );
 }
 
 std::string TranslateTp(const NodeView& node_view) {

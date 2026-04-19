@@ -14,8 +14,8 @@ namespace {
     
     if (unit.color.start <= unit.color.end) {
       result.append(Concat(
-        ",color:"sv, Extract(source_code, unit.color),
-        ",italic:"sv, unit.italic ? "true"sv : "false"sv
+        ",color:\""sv, Extract(source_code, unit.color),
+        "\",italic:"sv, unit.italic ? "true"sv : "false"sv
       ));
     }
 
@@ -35,7 +35,8 @@ std::string TranslateText(const Text& text, std::string_view source_code) {
     return "{text:\"\"}";
   }
 
-  std::string result = Concat("{"sv, Sv(TranslateUnit(text.units[0], source_code)));
+  std::string result = "{";
+  result.append(TranslateUnit(text.units[0], source_code));
   
   if (text.units.size() == 1) {
     result.push_back('}');
@@ -49,7 +50,9 @@ std::string TranslateText(const Text& text, std::string_view source_code) {
       result.push_back(',');
     }
 
-    result.append(Concat("{"sv, Sv(TranslateUnit(text.units[i], source_code)), "}"sv));
+    result.push_back('{');
+    result.append(TranslateUnit(text.units[i], source_code));
+    result.push_back('}');
   }
 
   result.append("]}");
