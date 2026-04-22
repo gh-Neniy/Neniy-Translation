@@ -7,7 +7,13 @@ namespace {
     std::string result;
 
     if (std::holds_alternative<BaseToken>(unit.value)) {
-      result.append(Extract(source_code, unit.key));
+      std::string_view key = Extract(source_code, unit.key);
+
+      if (key == "gm") {
+        key = "gamemode";
+      }
+
+      result.append(key);
       result.push_back('=');
 
       auto value = std::get<BaseToken>(unit.value);
@@ -17,7 +23,7 @@ namespace {
 
       const auto& value = std::get<DataPtr>(unit.value);
       result.push_back('{');
-      result.append(TranslateEntityData(value->units, source_code)); // nbt={...}
+      result.append(TranslateEntityData(value->units, source_code, false)); // nbt={...}
       result.push_back('}');
     }
 

@@ -267,8 +267,8 @@ std::string TranslateData(const NodeView& node_view) {
   }
   
   result.append(Concat(
-    " "sv, node_view.Extract(current_arg + 1),      // mode
-    " value "sv, node_view.Extract(current_arg + 2) // value
+    " "sv, node_view.Extract(current_arg + 1),                // mode
+    " value \""sv, node_view.Extract(current_arg + 2), "\""sv // value
   ));
 
   return result;
@@ -302,6 +302,7 @@ std::string TranslateEffect(const NodeView& node_view) {
   result.append(node_view.Extract(current_arg + 1)); // duration
   result.push_back(' ');
   result.append(node_view.Extract(current_arg + 2)); // amplifier
+  result.append(" true");
 
   return result;
 }
@@ -415,9 +416,15 @@ std::string TranslateGamemode(const NodeView& node_view) {
 }
 
 std::string TranslateGamerule(const NodeView& node_view) {
+  std::string_view rule = node_view.Extract(0);
+
+  if (rule == "natural_regeneration") {
+    rule = "natural_health_regeneration";
+  }
+
   return Concat(
     "gamerule "sv,
-    node_view.Extract(0), " "sv,
+    rule, " "sv,
     node_view.Extract(1)
   );
 }
@@ -463,9 +470,9 @@ std::string TranslateParticle(const NodeView& node_view) {
   std::string particle_name = static_cast<std::string>(Extract(node_view.Source(), raw_ptr->identifier));
   if (!raw_ptr->units.empty()) {
     particle_name.append(Concat(
-      "["sv,
+      "{"sv,
       Sv(TranslateParticleData(raw_ptr->units, node_view.Source())),
-      "]"sv
+      "}"sv
     ));
   }
 
@@ -575,13 +582,13 @@ std::string TranslateSetblock(const NodeView& node_view) {
 
   return Concat(
     "setblock "sv,
+    node_view.Extract(0), " "sv, // x
+    node_view.Extract(1), " "sv, // y
+    node_view.Extract(2), " "sv, // z
     Sv(Concat (
       Extract(node_view.Source(), id_with_data_ptr->identifier), // block
       Sv(TranslateBlockDataIfExists(id_with_data_ptr->units, node_view.Source()))
     )), " "sv,
-    node_view.Extract(0), " "sv, // x
-    node_view.Extract(1), " "sv, // y
-    node_view.Extract(2), " "sv, // z
     node_view.Extract(3)         // mode
   );
 }
@@ -626,7 +633,7 @@ std::string TranslateStopsound(const NodeView& node_view) {
     ++current_arg;
   }
 
-  result.push_back(' ');
+  result.append(" * ");
   result.append(node_view.Extract(current_arg)); // sound id
 
   return result;
@@ -647,7 +654,7 @@ std::string TranslateSummon(const NodeView& node_view) {
     result.push_back(' ');
     result.append(Concat(
       "{"sv,
-      Sv(TranslateEntityData(id_with_data_ptr->units, node_view.Source())),
+      Sv(TranslateEntityData(id_with_data_ptr->units, node_view.Source(), true)),
       "}"sv
     ));
   }
@@ -691,10 +698,18 @@ std::string TranslateTeamJoin(const NodeView& node_view) {
 }
 
 std::string TranslateTeamModify(const NodeView& node_view) {
+  std::string_view rule = node_view.Extract(1);
+
+  if (rule == "friendly_fire") {
+    rule = "friendlyFire";
+  } else if (rule == "collision") {
+    rule = "collisionRule";
+  }
+
   return Concat(
     "team modify "sv,
     node_view.Extract(0), " "sv,
-    node_view.Extract(1), " "sv,
+    rule, " "sv,
     node_view.Extract(2)
   );
 }

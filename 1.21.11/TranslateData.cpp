@@ -7,8 +7,6 @@
 using namespace std::literals;
 
 namespace {
-  constexpr std::string_view hide_content = "tooltip_display={hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}";
-
   std::string TranslateLore(const std::vector<Text>& lore, std::string_view source_code) {
     std::string result = "[";
 
@@ -33,7 +31,7 @@ namespace {
       }
 
       result.append(Concat(
-        "\""sv, Extract(source_code, list[i].key), "\":"sv, Extract(source_code, list[i].value)
+        "\"minecraft:"sv, Extract(source_code, list[i].key), "\":"sv, Extract(source_code, list[i].value)
       ));
     }
 
@@ -80,7 +78,7 @@ namespace {
                                       std::string_view source_code) {
     std::string equipment_unit = Concat(
       unit_name,
-      ":{id:\""sv,
+      ":{id:\"minecraft:"sv,
       Extract(source_code, id_with_data_ptr->identifier),
       "\""sv
     );
@@ -215,7 +213,7 @@ namespace {
     }
   }
 
-  void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code,
+  void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, bool is_summon,
                         std::vector<Attribute>& attributes, std::vector<Equipment>& equipment, std::vector<std::string_view>& tags) {
     switch (unit.key.type) {
       case TokenType::CanGrab:
@@ -247,7 +245,7 @@ namespace {
 
         const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
 
-        result.append(Concat("BlockState:{Name:\""sv, Extract(source_code, id_with_data_ptr->identifier)));
+        result.append(Concat("BlockState:{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
 
         const auto& data_units = id_with_data_ptr->units;
         if (!data_units.empty()) {
@@ -256,7 +254,7 @@ namespace {
           ));
         }
 
-        result.append("\"}");
+        result.push_back('}');
         break;
       }
       case TokenType::InGround:
@@ -275,10 +273,12 @@ namespace {
 
         const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
 
-        result.append(Concat("nbt={item:{id:"sv, Extract(source_code, id_with_data_ptr->identifier)));
+        result.append(
+          Concat(is_summon ? "I"sv : "i"sv, "tem:{id:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv)
+        );
 
         if (!id_with_data_ptr->units.empty()) {
-          result.push_back(',');
+          result.append(",components:{");
           result.append(TranslateItemData(id_with_data_ptr->units, source_code, ":"));
         }
 
@@ -292,7 +292,7 @@ namespace {
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::LootTable:
-        AppendUnit(result, Concat("DeathLootTable:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(result, Concat("DeathLootTable:\""sv, Extract(source_code, std::get<BaseToken>(unit.value)), "\""sv));
         break;
       case TokenType::Name: {
         const auto& text = std::get<Text>(unit.value);
@@ -372,7 +372,7 @@ namespace {
 
         break;
       case TokenType::Hide:
-        AppendUnit(result, hide_content);
+        AppendUnit(result, Concat("tooltip_display"sv, separator, "{hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}"sv));
         break;
       case TokenType::Lore: {
         const auto& lore = std::get<std::vector<Text>>(unit.value);
@@ -400,11 +400,12 @@ namespace {
         break;
       case TokenType::Tag:
         AppendUnit(result, Concat (
-          "components:{custom_data:{tag:"sv, Extract(source_code, std::get<BaseToken>(unit.value)), "}}"sv
+          separator == "=" ? "custom_data" : "\"minecraft:custom_data\""sv, separator,
+          "{tag:"sv, Extract(source_code, std::get<BaseToken>(unit.value)), "}"sv
         ));
         break;
       case TokenType::Unbreakable:
-        AppendUnit(result, "unbreakable={}");
+        AppendUnit(result, Concat("unbreakable"sv, separator, "{}"sv));
         break;
       default:
         throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in item data"sv));
@@ -414,7 +415,7 @@ namespace {
   void ParticleDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code) {
     switch (unit.key.type) {
       case TokenType::Block:
-        AppendUnit(result, Concat("item:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(result, Concat("block_state:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
         break;
       case TokenType::FromColor:
         AppendUnit(result, Concat("from_color:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
@@ -473,9 +474,9 @@ namespace {
       std::string_view attribute_name = Extract(source_code, attribute_modifiers[i].key);
 
       result.append(Concat (
-        "{type:\""sv, attribute_name,
+        "{type:\"minecraft:"sv, attribute_name,
         "\",amount:"sv, attribute_modifiers[i].value,
-        ",operator:\"add_value\",slot:\"mainhand\",id:\"base_"sv, attribute_name, "\"}"sv
+        ",operation:\"add_value\",slot:\"mainhand\",id:\"base_"sv, attribute_name, "\"}"sv
       ));
     }
 
@@ -495,7 +496,7 @@ std::string TranslateBlockData(const std::vector<DataUnit>& units, std::string_v
   return result;
 }
 
-std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code) {
+std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code, bool is_summon) {
   std::vector<Attribute> attributes;
   std::vector<Equipment> equipment;
   std::vector<std::string_view> tags;
@@ -503,7 +504,7 @@ std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_
   std::string result;
 
   for (const auto& unit : units) {
-    EntityDataSwitch(unit, result, source_code, attributes, equipment, tags);
+    EntityDataSwitch(unit, result, source_code, is_summon, attributes, equipment, tags);
   }
 
   if (!attributes.empty()) {
