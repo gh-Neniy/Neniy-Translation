@@ -196,6 +196,20 @@ namespace {
 
     return result;
   }
+
+  std::string TranslateExecuteFacing(const NodeView& node_view) {
+    std::string result = "facing ";
+
+    if (node_view.size() == 0) {
+      result.append(TranslateSelector(node_view));
+    } else if (node_view.size() == 1) {
+      result.append(node_view.Extract(0));
+    } else {
+      result.append(Concat(node_view.Extract(0), " "sv, node_view.Extract(1), " "sv, node_view.Extract(2)));
+    }
+
+    return result;
+  }
 }
 
 std::string TranslateClear(const NodeView& node_view) {
@@ -216,7 +230,7 @@ std::string TranslateClear(const NodeView& node_view) {
 }
 
 std::string TranslateClone(const NodeView& node_view) {
-  return Concat(
+  std::string result = Concat(
     "clone "sv,
     node_view.Extract(0), " "sv, // start x
     node_view.Extract(1), " "sv, // start y
@@ -229,6 +243,12 @@ std::string TranslateClone(const NodeView& node_view) {
     node_view.Extract(8), " "sv, // from z
     node_view.Extract(9)         // mode
   );
+
+  if (node_view.size() == 11) {
+    result.append(Concat(" "sv, node_view.Extract(10)));
+  }
+
+  return result;
 }
 
 std::string TranslateDamage(const NodeView& node_view) {
@@ -331,6 +351,9 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
         break;
       case CommandType::ExecuteEntity:
         result.append(TranslateExecuteEntity(subnode_view));
+        break;
+      case CommandType::ExecuteFacing:
+        result.append(TranslateExecuteFacing(subnode_view));
         break;
       case CommandType::ExecuteItemsBlock:
         result.append(TranslateExecuteItemsBlock(subnode_view));
@@ -654,7 +677,7 @@ std::string TranslateSummon(const NodeView& node_view) {
     result.push_back(' ');
     result.append(Concat(
       "{"sv,
-      Sv(TranslateEntityData(id_with_data_ptr->units, node_view.Source(), true)),
+      Sv(TranslateEntityData(id_with_data_ptr->units, node_view.Source())),
       "}"sv
     ));
   }

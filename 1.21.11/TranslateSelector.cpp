@@ -23,7 +23,7 @@ namespace {
 
       const auto& value = std::get<DataPtr>(unit.value);
       result.push_back('{');
-      result.append(TranslateEntityData(value->units, source_code, false)); // nbt={...}
+      result.append(TranslateEntityData(value->units, source_code)); // nbt={...}
       result.push_back('}');
     }
 

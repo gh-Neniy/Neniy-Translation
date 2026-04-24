@@ -213,9 +213,29 @@ namespace {
     }
   }
 
-  void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, bool is_summon,
-                        std::vector<Attribute>& attributes, std::vector<Equipment>& equipment, std::vector<std::string_view>& tags) {
+  void AppendItem(std::string& result, const IdWithDataPtr& id_with_data_ptr, bool about, std::string_view source_code) {
+    if (!result.empty()) {
+      result.push_back(',');
+    }
+  
+    result.append(
+      Concat(about ? "i"sv : "I"sv, "tem:{id:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv)
+    );
+  
+    if (!id_with_data_ptr->units.empty()) {
+      result.append(",components:{");
+      result.append(TranslateItemData(id_with_data_ptr->units, source_code, ":"));
+    }
+  
+    result.append("}}");
+  }
+
+  void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::vector<Attribute>& attributes,
+                        std::vector<Equipment>& equipment, std::vector<std::string_view>& tags) {
     switch (unit.key.type) {
+      case TokenType::About:
+        AppendItem(result, std::get<IdWithDataPtr>(unit.value), true, source_code);
+        break;
       case TokenType::CanGrab:
         AppendUnit(result, "CanPickUpLoot:1b");
         break;
@@ -245,7 +265,7 @@ namespace {
 
         const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
 
-        result.append(Concat("BlockState:{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
+        result.append(Concat("block_state:{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
 
         const auto& data_units = id_with_data_ptr->units;
         if (!data_units.empty()) {
@@ -267,22 +287,7 @@ namespace {
         AppendUnit(result, "Invulnerable:1b");
         break;
       case TokenType::Item: {
-        if (!result.empty()) {
-          result.push_back(',');
-        }
-
-        const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
-
-        result.append(
-          Concat(is_summon ? "I"sv : "i"sv, "tem:{id:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv)
-        );
-
-        if (!id_with_data_ptr->units.empty()) {
-          result.append(",components:{");
-          result.append(TranslateItemData(id_with_data_ptr->units, source_code, ":"));
-        }
-
-        result.append("}}");
+        AppendItem(result, std::get<IdWithDataPtr>(unit.value), false, source_code);
         break;
       }
       case TokenType::LeftHand:
@@ -496,7 +501,7 @@ std::string TranslateBlockData(const std::vector<DataUnit>& units, std::string_v
   return result;
 }
 
-std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code, bool is_summon) {
+std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code) {
   std::vector<Attribute> attributes;
   std::vector<Equipment> equipment;
   std::vector<std::string_view> tags;
@@ -504,7 +509,7 @@ std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_
   std::string result;
 
   for (const auto& unit : units) {
-    EntityDataSwitch(unit, result, source_code, is_summon, attributes, equipment, tags);
+    EntityDataSwitch(unit, result, source_code, attributes, equipment, tags);
   }
 
   if (!attributes.empty()) {
