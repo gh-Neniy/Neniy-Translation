@@ -19,7 +19,18 @@ namespace {
       return "";
     }
 
-    return Concat("["sv, Sv(TranslateBlockData(data_units, source_code, "=")), "]"sv);
+    auto translated_block_data = TranslateBlockData(data_units, source_code, "=");
+    std::string result;
+
+    if (!translated_block_data.first.empty()) {
+      result.append(Concat("["sv, Sv(translated_block_data.first), "]"sv));
+    }
+
+    if (!translated_block_data.second.empty()) {
+      result.append(Concat("{"sv, Sv(translated_block_data.second), "}"sv));
+    }
+
+    return result;
   }
 
   std::string TranslateEntitySubcommand(const NodeView& node_view, IndexType entity_pos) {
@@ -215,9 +226,11 @@ namespace {
 std::string TranslateClear(const NodeView& node_view) {
   std::string result = "clear ";
   IndexType current_arg = 0;
-  
-  if (node_view.size() == 1) { // with selector
-    result.append(TranslateSelector(node_view));
+
+  const auto& selector = node_view.get<SelectorNode*>()->selector;
+
+  if (selector.stem.type != TokenType::Identifier) { // with selector
+    result.append(TranslateSelector(selector, node_view.Source()));
   } else {
     result.append(node_view.Extract(current_arg));
     ++current_arg;
@@ -225,6 +238,11 @@ std::string TranslateClear(const NodeView& node_view) {
 
   result.push_back(' ');
   result.append(node_view.Extract(current_arg));
+
+  if (node_view.size() == current_arg + 2) {
+    result.push_back(' ');
+    result.append(node_view.Extract(current_arg + 1));
+  }
 
   return result;
 }
@@ -453,21 +471,32 @@ std::string TranslateGamerule(const NodeView& node_view) {
 }
 
 std::string TranslateGive(const NodeView& node_view) {
-  std::string result = Concat(
-    "give "sv,
-    Sv(TranslateEntitySubcommand(node_view, 0))
-  );
+  std::string result = "give ";
 
-  auto genuine_node_ptr = node_view.get<SelectorIdWithDataPtrNode*>();
+  auto raw_ptr = node_view.get<SelectorIdWithDataPtrNode*>();
+  IndexType current_arg = 0;
+
+  if (raw_ptr->selector.stem.type == TokenType::Identifier) {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  } else {
+    result.append(TranslateSelector(raw_ptr->selector, node_view.Source()));
+  }
+
   result.push_back(' ');
-  result.append(Extract(node_view.Source(), genuine_node_ptr->id_with_data_ptr->identifier));
+  result.append(Extract(node_view.Source(), raw_ptr->id_with_data_ptr->identifier));
 
-  if (!genuine_node_ptr->id_with_data_ptr->units.empty()) {
+  if (!raw_ptr->id_with_data_ptr->units.empty()) {
     result.append(Concat(
       "["sv,
-      Sv(TranslateItemData(genuine_node_ptr->id_with_data_ptr->units, node_view.Source(), "=")),
+      Sv(TranslateItemData(raw_ptr->id_with_data_ptr->units, node_view.Source(), "=")),
       "]"sv
     ));
+  }
+
+  if (node_view.size() == current_arg + 1) {
+    result.push_back(' ');
+    result.append(node_view.Extract(current_arg));
   }
 
   return result;
@@ -556,14 +585,14 @@ std::string TranslateScoreboardObjectivesAdd(const NodeView& node_view) {
     node_view.Extract(1)         // objective type
   );
 
-  auto genuine_node_ptr = node_view.get<TextNode*>();
+  auto raw_ptr = node_view.get<TextNode*>();
 
-  if (genuine_node_ptr->text.units.empty()) {
+  if (raw_ptr->text.units.empty()) {
     return result;
   }
 
   result.push_back(' ');
-  result.append(TranslateText(genuine_node_ptr->text, node_view.Source())); // objective name
+  result.append(TranslateText(raw_ptr->text, node_view.Source())); // objective name
 
   return result;
 }

@@ -176,7 +176,7 @@ namespace {
     result.append(to_append);
   }
 
-  void BlockDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::string_view separator) {
+  void BlockDataSwitch(const DataUnit& unit, std::string& result, std::string& special_result, std::string_view source_code, std::string_view separator) {
     switch (unit.key.type) {
       case TokenType::East:
         AppendUnit(result, Concat("east"sv, separator, "true"sv));
@@ -201,6 +201,9 @@ namespace {
         break;
       case TokenType::Powered:
         AppendUnit(result, Concat("powered"sv, separator, "true"sv));
+        break;
+      case TokenType::Sign:
+        AppendUnit(special_result, Concat("front_text:{messages:"sv, Sv(TranslateLore(std::get<std::vector<Text>>(unit.value), source_code)), "}"sv));
         break;
       case TokenType::South:
         AppendUnit(result, Concat("south"sv, separator, "true"sv));
@@ -270,7 +273,7 @@ namespace {
         const auto& data_units = id_with_data_ptr->units;
         if (!data_units.empty()) {
           result.append(Concat (
-            ",Properties:{"sv, Sv(TranslateBlockData(data_units, source_code, ":")), "}"sv
+            ",Properties:{"sv, Sv(TranslateBlockData(data_units, source_code, ":").first), "}"sv
           ));
         }
 
@@ -491,14 +494,15 @@ namespace {
   }
 }
 
-std::string TranslateBlockData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator) {
+std::pair<std::string, std::string> TranslateBlockData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator) {
   std::string result;
+  std::string special_result; // for sign
 
   for (const auto& unit : units) {
-    BlockDataSwitch(unit, result, source_code, separator); 
+    BlockDataSwitch(unit, result, special_result, source_code, separator); 
   }
 
-  return result;
+  return {std::move(result), std::move(special_result)};
 }
 
 std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code) {
