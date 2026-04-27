@@ -164,6 +164,14 @@ namespace {
     return result;
   }
 
+  std::string TranslateExecuteStoreBossbar(const NodeView& node_view) {
+    return Concat (
+      "store result bossbar "sv,
+      node_view.Extract(0), // bossbar name
+      " value"sv
+    );
+  }
+
   std::string TranslateExecuteStoreEntity(const NodeView& node_view) {
     std::string result = "store result entity ";
 
@@ -221,6 +229,37 @@ namespace {
 
     return result;
   }
+}
+
+std::string TranslateBossbarAdd(const NodeView& node_view) {
+  return Concat (
+    "bossbar add "sv,
+    node_view.Extract(0), " "sv, // bossbar name
+    Sv(TranslateText(node_view.get<TextNode*>()->text, node_view.Source()))
+  );
+}
+
+std::string TranslateBossbarSet(const NodeView& node_view) {
+  std::string result = Concat("bossbar set "sv, node_view.Extract(0), " "sv);
+
+  std::string_view submode = node_view.Extract(1);
+  result.append(submode);
+  result.push_back(' ');
+
+  if (submode == "players") {
+    result.append(TranslateEntitySubcommand(node_view, 2));
+  } else { // == color
+    result.append(node_view.Extract(2));
+  }
+
+  return result;
+}
+
+std::string TranslateBossbarRemove(const NodeView& node_view) {
+  return Concat (
+    "bossbar remove "sv,
+    node_view.Extract(0) // bossbar name
+  );
 }
 
 std::string TranslateClear(const NodeView& node_view) {
@@ -384,6 +423,9 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
         break;
       case CommandType::ExecutePositioned:
         result.append(TranslateExecutePositioned(subnode_view));
+        break;
+      case CommandType::ExecuteStoreBossbar:
+        result.append(TranslateExecuteStoreBossbar(subnode_view));
         break;
       case CommandType::ExecuteStoreEntity:
         result.append(TranslateExecuteStoreEntity(subnode_view));
@@ -784,6 +826,29 @@ std::string TranslateTime(const NodeView& node_view) {
     node_view.Extract(0), " "sv,  // mode
     node_view.Extract(1)          // value
   );
+}
+
+std::string TranslateTitle(const NodeView& node_view) {
+  std::string result = "title ";
+  IndexType current_arg = 0;
+
+  const auto& node = node_view.get<SelectorTextNode*>();
+  const auto& selector = node->selector;
+
+  if (selector.stem.type == TokenType::Identifier) {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  } else {
+    result.append(TranslateSelector(selector, node_view.Source()));
+  }
+
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg));
+
+  result.push_back(' ');
+  result.append(TranslateText(node->text, node_view.Source()));
+
+  return result;
 }
 
 std::string TranslateTp(const NodeView& node_view) {

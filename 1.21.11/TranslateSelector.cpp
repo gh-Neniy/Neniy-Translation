@@ -1,8 +1,25 @@
 #include "Aux.hpp"
+#include "main/Concat.hpp"
 #include "TranslateData.hpp"
 #include "TranslateSelector.hpp"
 
+using namespace std::literals;
+
 namespace {
+  std::string TranslateList(const ListType& list, std::string_view source_code) { // without braces
+    std::string result;
+
+    for (int i = 0; i < list.size(); ++i) {
+      if (i > 0) {
+        result.push_back(',');
+      }
+      
+      result.append(Concat(Extract(source_code, list[i].key), "="sv, Extract(source_code, list[i].value)));
+    }
+
+    return result;
+  }
+
   std::string TranslateSelectorUnit(const SelectorUnit& unit, std::string_view source_code) {
     std::string result;
 
@@ -18,13 +35,15 @@ namespace {
 
       auto value = std::get<BaseToken>(unit.value);
       result.append(Extract(source_code, value));
-    } else {
+    } else if (std::holds_alternative<DataPtr>(unit.value)) {
       result.append("nbt=");
 
       const auto& value = std::get<DataPtr>(unit.value);
       result.push_back('{');
       result.append(TranslateEntityData(value->units, source_code)); // nbt={...}
       result.push_back('}');
+    } else { // ListType, scores
+      result.append(Concat("scores={"sv, Sv(TranslateList(std::get<ListType>(unit.value), source_code)), "}"sv));
     }
 
     return result;

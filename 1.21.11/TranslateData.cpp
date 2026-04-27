@@ -49,6 +49,11 @@ namespace {
     const IdWithDataPtr& value;
   };
 
+  struct Chance {
+    Token key;
+    std::string_view chance;
+  };
+
   std::string TranslateAttributes(const std::vector<Attribute>& attributes, std::string_view source_code) {
     std::string result = "attributes:[";
 
@@ -168,6 +173,43 @@ namespace {
     return result;
   }
 
+  std::string TranslateChances(const std::vector<Chance>& chances, std::string_view source_code) {
+    std::string result = "drop_chances:{";
+
+    for (int i = 0; i < chances.size(); ++i) {
+      if (i > 0) {
+        result.push_back(',');
+      }
+
+      switch (chances[i].key.type) {
+        case TokenType::ChestChance:
+          result.append(Concat("chest:"sv, chances[i].chance));
+          break;
+        case TokenType::FeetChance:
+          result.append(Concat("feet:"sv, chances[i].chance));
+          break;
+        case TokenType::HeadChance:
+          result.append(Concat("head:"sv, chances[i].chance));
+          break;
+        case TokenType::LeftHandChance:
+          result.append(Concat("offhand:"sv, chances[i].chance));
+          break;
+        case TokenType::LegsChance:
+          result.append(Concat("legs:"sv, chances[i].chance));
+          break;
+        case TokenType::RightHandChance:
+          result.append(Concat("mainhand:"sv, chances[i].chance));
+          break;
+        default:
+          throw std::logic_error("Internal translation error - unknown key type in TranslateChances()");
+      }
+    }
+
+    result.push_back('}');
+
+    return result;
+  }
+
   void AppendUnit(std::string& result, std::string_view to_append) {
     if (!result.empty()) {
       result.push_back(',');
@@ -234,7 +276,7 @@ namespace {
   }
 
   void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::vector<Attribute>& attributes,
-                        std::vector<Equipment>& equipment, std::vector<std::string_view>& tags) {
+                        std::vector<Equipment>& equipment, std::vector<std::string_view>& tags, std::vector<Chance>& chances) {
     switch (unit.key.type) {
       case TokenType::About:
         AppendItem(result, std::get<IdWithDataPtr>(unit.value), true, source_code);
@@ -245,14 +287,23 @@ namespace {
       case TokenType::Chest:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
+      case TokenType::ChestChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        break;
       case TokenType::Crit:
         AppendUnit(result, "crit:1b");
         break;
       case TokenType::Feet:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
+      case TokenType::FeetChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        break;
       case TokenType::Head:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
+        break;
+      case TokenType::HeadChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Health: {
         auto points = std::get<BaseToken>(unit.value);
@@ -298,6 +349,9 @@ namespace {
         break;
       case TokenType::Legs:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
+        break;
+      case TokenType::LegsChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
         break;
       case TokenType::LootTable:
         AppendUnit(result, Concat("DeathLootTable:\""sv, Extract(source_code, std::get<BaseToken>(unit.value)), "\""sv));
@@ -509,11 +563,12 @@ std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_
   std::vector<Attribute> attributes;
   std::vector<Equipment> equipment;
   std::vector<std::string_view> tags;
+  std::vector<Chance> chances;
 
   std::string result;
 
   for (const auto& unit : units) {
-    EntityDataSwitch(unit, result, source_code, attributes, equipment, tags);
+    EntityDataSwitch(unit, result, source_code, attributes, equipment, tags, chances);
   }
 
   if (!attributes.empty()) {
@@ -524,6 +579,9 @@ std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_
   }
   if (!tags.empty()) {
     AppendUnit(result, TranslateTags(tags, source_code));
+  }
+  if (!chances.empty()) {
+    AppendUnit(result, TranslateChances(chances, source_code));
   }
 
   return result;

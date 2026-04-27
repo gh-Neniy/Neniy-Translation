@@ -6,6 +6,12 @@
 #include <string>
 
 extern "C" {
+  std::string TranslateBossbarAdd(const NodeView&);
+
+  std::string TranslateBossbarSet(const NodeView&);
+
+  std::string TranslateBossbarRemove(const NodeView&);
+
   std::string TranslateClear(const NodeView&);
 
   std::string TranslateClone(const NodeView&);
@@ -65,6 +71,8 @@ extern "C" {
   std::string TranslateTellraw(const NodeView&);
 
   std::string TranslateTime(const NodeView&);
+
+  std::string TranslateTitle(const NodeView&);
 
   std::string TranslateTp(const NodeView&);
 }
