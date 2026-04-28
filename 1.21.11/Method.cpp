@@ -248,7 +248,7 @@ std::string TranslateBossbarSet(const NodeView& node_view) {
 
   if (submode == "players") {
     result.append(TranslateEntitySubcommand(node_view, 2));
-  } else { // == color
+  } else { // == color or max
     result.append(node_view.Extract(2));
   }
 
@@ -451,6 +451,10 @@ std::string TranslateExecute(const NodeView& node_view, std::string_view functio
 }
 
 std::string TranslateFill(const NodeView& node_view) {
+  const auto& id_with_data_ptr = node_view.get<IdWithDataPtrNode*>()->id_with_data_ptr;
+  const auto& id = id_with_data_ptr->identifier;
+  const auto& units = id_with_data_ptr->units;
+
   std::string result = Concat(
     "fill "sv,
     node_view.Extract(0), " "sv, // start x
@@ -459,12 +463,13 @@ std::string TranslateFill(const NodeView& node_view) {
     node_view.Extract(3), " "sv, // end x
     node_view.Extract(4), " "sv, // end y
     node_view.Extract(5), " "sv, // end z
-    node_view.Extract(6), " "sv, // block
-    node_view.Extract(7)         // mode
+    Extract(node_view.Source(), id), // block
+    Sv(TranslateBlockDataIfExists(units, node_view.Source())), " "sv,
+    node_view.Extract(6)  // mode
   );
 
-  if (node_view.size() == 9) {
-    result.append(Concat(" "sv, node_view.Extract(8)));
+  if (node_view.size() == 8) {
+    result.append(Concat(" "sv, node_view.Extract(7)));
   }
 
   return result;

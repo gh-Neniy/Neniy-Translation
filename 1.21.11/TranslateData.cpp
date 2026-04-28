@@ -63,6 +63,12 @@ namespace {
       }
 
       switch (attributes[i].key.type) {
+        case TokenType::AttackDamage:
+          result.append(Concat("{id:\"minecraft:attack_damage\",base:"sv, attributes[i].value, "}"sv));
+          break;
+        case TokenType::AttackSpeed:
+          result.append(Concat("{id:\"minecraft:attack_speed\",base:"sv, attributes[i].value, "}"sv));
+          break;
         case TokenType::Health:
           result.append(Concat("{id:\"minecraft:max_health\",base:"sv, attributes[i].value, "}"sv));
           break;
@@ -220,6 +226,9 @@ namespace {
 
   void BlockDataSwitch(const DataUnit& unit, std::string& result, std::string& special_result, std::string_view source_code, std::string_view separator) {
     switch (unit.key.type) {
+      case TokenType::Axis:
+        AppendUnit(result, Concat("axis"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        break;
       case TokenType::East:
         AppendUnit(result, Concat("east"sv, separator, "true"sv));
         break;
@@ -280,6 +289,12 @@ namespace {
     switch (unit.key.type) {
       case TokenType::About:
         AppendItem(result, std::get<IdWithDataPtr>(unit.value), true, source_code);
+        break;
+      case TokenType::AttackDamage:
+        attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        break;
+      case TokenType::AttackSpeed:
+        attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
         break;
       case TokenType::CanGrab:
         AppendUnit(result, "CanPickUpLoot:1b");
@@ -347,6 +362,9 @@ namespace {
       case TokenType::LeftHand:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
+      case TokenType::LeftHandChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        break;
       case TokenType::Legs:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
@@ -378,18 +396,23 @@ namespace {
       case TokenType::PickupDelay:
         AppendUnit(result, Concat("PickupDelay:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
         break;
-      case TokenType::Stability: {
+      case TokenType::Stability:
         attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
         break;
-      }
       case TokenType::RightHand:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
+        break;
+      case TokenType::RightHandChance:
+        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Rotation:
         AppendUnit(result, Concat("Rotation:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
         break;
       case TokenType::Silent:
         AppendUnit(result, "Silent:1b");
+        break;
+      case TokenType::Size:
+        AppendUnit(result, Concat("Size:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
         break;
       case TokenType::Tag:
         tags.push_back(Extract(source_code, std::get<BaseToken>(unit.value)));
