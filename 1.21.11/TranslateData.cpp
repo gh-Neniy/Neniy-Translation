@@ -284,6 +284,27 @@ namespace {
     result.append("}}");
   }
 
+  void TranslateBlockState(std::string& result, const DataUnit& unit, std::string_view source_code, bool is_falling_block) {
+    if (!result.empty()) {
+      result.push_back(',');
+    }
+
+    const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
+
+    std::string_view block_state = is_falling_block ? "BlockState" : "block_state";
+
+    result.append(Concat(block_state, ":{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
+
+    const auto& data_units = id_with_data_ptr->units;
+    if (!data_units.empty()) {
+      result.append(Concat (
+        ",Properties:{"sv, Sv(TranslateBlockData(data_units, source_code, ":").first), "}"sv
+      ));
+    }
+
+    result.push_back('}');
+  }
+
   void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::vector<Attribute>& attributes,
                         std::vector<Equipment>& equipment, std::vector<std::string_view>& tags, std::vector<Chance>& chances) {
     switch (unit.key.type) {
@@ -295,6 +316,9 @@ namespace {
         break;
       case TokenType::AttackSpeed:
         attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        break;
+      case TokenType::Block:
+        TranslateBlockState(result, unit, source_code, true);
         break;
       case TokenType::CanGrab:
         AppendUnit(result, "CanPickUpLoot:1b");
@@ -327,25 +351,9 @@ namespace {
         AppendUnit(result, Concat("Health:"sv, Extract(source_code, points)));
         break;
       }
-      case TokenType::Id: {
-        if (!result.empty()) {
-          result.push_back(',');
-        }
-
-        const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
-
-        result.append(Concat("block_state:{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
-
-        const auto& data_units = id_with_data_ptr->units;
-        if (!data_units.empty()) {
-          result.append(Concat (
-            ",Properties:{"sv, Sv(TranslateBlockData(data_units, source_code, ":").first), "}"sv
-          ));
-        }
-
-        result.push_back('}');
+      case TokenType::Id: // id for block_display
+        TranslateBlockState(result, unit, source_code, false);
         break;
-      }
       case TokenType::InGround:
         AppendUnit(result, "inGround:1b");
         break;
@@ -500,7 +508,7 @@ namespace {
   void ParticleDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code) {
     switch (unit.key.type) {
       case TokenType::Block:
-        AppendUnit(result, Concat("block_state:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(result, Concat("block_state:"sv, Extract(source_code, std::get<IdWithDataPtr>(unit.value)->identifier)));
         break;
       case TokenType::FromColor:
         AppendUnit(result, Concat("from_color:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
