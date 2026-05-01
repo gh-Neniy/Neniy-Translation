@@ -338,11 +338,18 @@ std::string TranslateData(const NodeView& node_view) {
     result.append(TranslateSelector(node_view));
   }
 
-  result.append(Concat(" "sv, node_view.Extract(current_arg))); // data-field
+  std::string_view data_field = node_view.Extract(current_arg);
+
+  if (data_field == "loot_table") {
+    data_field = "DeathLootTable";
+  }
+
+  result.append(Concat(" "sv, data_field));
+
   if (mode == "get"sv) {
     return result;
   }
-  
+
   result.append(Concat(
     " "sv, node_view.Extract(current_arg + 1),                // mode
     " value \""sv, node_view.Extract(current_arg + 2), "\""sv // value
@@ -478,11 +485,19 @@ std::string TranslateFill(const NodeView& node_view) {
 std::string TranslateFunction(const NodeView& node_view, std::string_view function_prefix) {
   std::string result = "function ";
 
+  std::string_view function_body = node_view.Extract(0);
+
   if (!function_prefix.empty()) {
+    if (function_body.find(':') != std::string_view::npos) {
+      throw std::runtime_error("Translation error - double prefix in function body");
+    }
+
     result.append(Concat(function_prefix, ":"sv));
+  } else if (function_body.find(':') == std::string_view::npos) {
+    throw std::runtime_error("Translation error - no prefix found in function body");
   }
 
-  result.append(node_view.Extract(0));
+  result.append(function_body);
 
   return result;
 }
@@ -653,25 +668,34 @@ std::string TranslateScoreboardObjectivesSet(const NodeView& node_view) {
 }
 
 std::string TranslateScoreboardPlayers(const NodeView& node_view) {
+  std::string_view mode = node_view.Extract(0);
+
   std::string result = Concat(
     "scoreboard players "sv,
-    node_view.Extract(0) // mode
+    mode
   );
 
-  IndexType current_argument = 1;
+  IndexType current_arg = 1;
+  TokenType selector_type = node_view.get<SelectorNode*>()->selector.stem.type;
 
   result.push_back(' ');
-  if (node_view.size() == 3) { // with selector
+  if (selector_type != TokenType::Identifier) { // with selector
     result.append(TranslateSelector(node_view));
-  } else { // == 4, with entity name
-    result.append(node_view.Extract(current_argument));
-    ++current_argument;
+  } else { // with entity name
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
   }
 
-  result.append(Concat(
-    " "sv, node_view.Extract(current_argument),    // objective
-    " "sv, node_view.Extract(current_argument + 1) // points
-  ));
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg)); // objective
+  ++current_arg;
+
+  if (mode == "reset") {
+    return result;
+  }
+
+  result.push_back(' ');
+  result.append(node_view.Extract(current_arg)); // points
 
   return result;
 }
