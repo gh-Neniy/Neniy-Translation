@@ -231,6 +231,25 @@ namespace {
   }
 }
 
+std::string TranslateAdvancement(const NodeView& node_view) {
+  std::string result = "advancement grant ";
+
+  const auto& raw_ptr = node_view.get<SelectorNode*>();
+  IndexType current_arg = 0;
+
+  if (raw_ptr->selector.stem.type == TokenType::Identifier) {
+    result.append(node_view.Extract(current_arg));
+    ++current_arg;
+  } else {
+    result.append(TranslateSelector(raw_ptr->selector, node_view.Source()));
+  }
+
+  result.append(" only ");
+  result.append(node_view.Extract(current_arg));
+
+  return result;
+}
+
 std::string TranslateBossbarAdd(const NodeView& node_view) {
   return Concat (
     "bossbar add "sv,

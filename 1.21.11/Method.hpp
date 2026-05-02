@@ -6,6 +6,8 @@
 #include <string>
 
 extern "C" {
+  std::string TranslateAdvancement(const NodeView&);
+
   std::string TranslateBossbarAdd(const NodeView&);
 
   std::string TranslateBossbarSet(const NodeView&);
