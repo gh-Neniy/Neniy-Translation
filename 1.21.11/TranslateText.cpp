@@ -50,3 +50,17 @@ void TranslateText(NodeView& node_view, const Text& text) {
 
   node_view.Append("]}");
 }
+
+void TranslateLore(NodeView& node_view, const std::vector<Text>& lore) {
+  node_view.PushBack('[');
+
+  for (std::size_t i = 0; i < lore.size(); ++i) {
+    if (i > 0) {
+      node_view.PushBack(',');
+    }
+
+    TranslateText(node_view, lore[i]);
+  }
+
+  node_view.PushBack(']');
+}

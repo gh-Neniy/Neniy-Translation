@@ -6,3 +6,5 @@
 // Text is passed because of ambiguity of node type (TextNode or SelectorTextNode)
 
 void TranslateText(NodeView& node_view, const Text& text);
+
+void TranslateLore(NodeView& node_view, const std::vector<Text>& lore);

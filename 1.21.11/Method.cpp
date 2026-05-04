@@ -8,6 +8,22 @@
 using namespace std::string_view_literals;
 
 namespace {
+  void TranslateBlockData(NodeView& node_view, const std::vector<DataUnit>& units) {
+    node_view.PushBack('[');
+    std::vector<Text> sign_data = TranslateBlockData(node_view, units, "="sv);
+    node_view.PushBack(']');
+
+    if (!sign_data.empty()) {
+      if (sign_data.size() != 4) {
+        throw std::runtime_error("Translation error - sign data size != 4");
+      }
+  
+      node_view.Append("{front_text:{messages:");
+      TranslateLore(node_view, sign_data);
+      node_view.Append("}}");
+    }
+  }
+
   IndexType TranslateEntity(NodeView& node_view, IndexType entity_pos) {
     const auto& selector = node_view.Get<SelectorNode*>()->selector;
 
@@ -44,7 +60,7 @@ namespace {
     );
 
     if (!id_with_data_ptr->units.empty()) {
-      TranslateBlockData(node_view, id_with_data_ptr->units, "="sv);
+      TranslateBlockData(node_view, id_with_data_ptr->units);
     }
   }
 
@@ -369,7 +385,7 @@ void TranslateFill(NodeView& node_view) {
   );
 
   if (!id_with_data_ptr->units.empty()) {
-    TranslateBlockData(node_view, id_with_data_ptr->units, "=");
+    TranslateBlockData(node_view, id_with_data_ptr->units);
   }
 
   node_view.Append(" "sv, node_view.Extract(6)); // mode
@@ -460,7 +476,9 @@ void TranslateParticle(NodeView& node_view) {
   node_view.Append("particle "sv, node_view.Extract(id_with_data_ptr->identifier));
 
   if (!id_with_data_ptr->units.empty()) {
+    node_view.PushBack('{');
     TranslateParticleData(node_view, id_with_data_ptr->units);
+    node_view.PushBack('}');
   }
 
   node_view.Append(
@@ -557,7 +575,7 @@ void TranslateSetblock(NodeView& node_view) {
   );
 
   if (!id_with_data_ptr->units.empty()) {
-    TranslateBlockData(node_view, id_with_data_ptr->units, "=");
+    TranslateBlockData(node_view, id_with_data_ptr->units);
   }
   
   node_view.Append(" "sv, node_view.Extract(3)); // mode
@@ -601,8 +619,9 @@ void TranslateSummon(NodeView& node_view) {
   );
 
   if (!id_with_data_ptr->units.empty()) {
-    node_view.PushBack(' ');
+    node_view.Append(" {");
     TranslateEntityData(node_view, id_with_data_ptr->units);
+    node_view.PushBack('}');
   }
 }
 
