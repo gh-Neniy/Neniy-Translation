@@ -3,78 +3,76 @@
 #include "asset/Loader.hpp"
 #include "trans/NodeView.hpp"
 
-#include <string>
-
 extern "C" {
-  std::string TranslateAdvancement(const NodeView&);
+  void TranslateAdvancement(NodeView&);
 
-  std::string TranslateBossbarAdd(const NodeView&);
+  void TranslateBossbarAdd(NodeView&);
 
-  std::string TranslateBossbarSet(const NodeView&);
+  void TranslateBossbarSet(NodeView&);
 
-  std::string TranslateBossbarRemove(const NodeView&);
+  void TranslateBossbarRemove(NodeView&);
 
-  std::string TranslateClear(const NodeView&);
+  void TranslateClear(NodeView&);
 
-  std::string TranslateClone(const NodeView&);
+  void TranslateClone(NodeView&);
 
-  std::string TranslateDamage(const NodeView&);
+  void TranslateDamage(NodeView&);
 
-  std::string TranslateData(const NodeView&);
+  void TranslateData(NodeView&);
 
-  std::string TranslateEffect(const NodeView&);
+  void TranslateEffect(NodeView&);
 
-  std::string TranslateExecute(const NodeView&, std::string_view function_prefix, const Loader& loader);
+  void TranslateExecute(NodeView&, std::string_view function_prefix, const Loader& loader);
 
-  std::string TranslateFill(const NodeView&);
+  void TranslateFill(NodeView&);
 
-  std::string TranslateFunction(const NodeView&, std::string_view function_prefix);
+  void TranslateFunction(NodeView&, std::string_view function_prefix);
 
-  std::string TranslateGamemode(const NodeView&);
+  void TranslateGamemode(NodeView&);
 
-  std::string TranslateGamerule(const NodeView&);
+  void TranslateGamerule(NodeView&);
 
-  std::string TranslateGive(const NodeView&);
+  void TranslateGive(NodeView&);
 
-  std::string TranslateKill(const NodeView&);
+  void TranslateKill(NodeView&);
 
-  std::string TranslateNative(const NodeView&);
+  void TranslateNative(NodeView&);
 
-  std::string TranslateParticle(const NodeView&);
+  void TranslateParticle(NodeView&);
 
-  std::string TranslatePlaysound(const NodeView&);
+  void TranslatePlaysound(NodeView&);
 
-  std::string TranslateSay(const NodeView&);
+  void TranslateSay(NodeView&);
 
-  std::string TranslateScoreboardObjectivesAdd(const NodeView&);
+  void TranslateScoreboardObjectivesAdd(NodeView&);
 
-  std::string TranslateScoreboardObjectivesSet(const NodeView&);
+  void TranslateScoreboardObjectivesSet(NodeView&);
 
-  std::string TranslateScoreboardPlayers(const NodeView&);
+  void TranslateScoreboardPlayers(NodeView&);
 
-  std::string TranslateSetblock(const NodeView&);
+  void TranslateSetblock(NodeView&);
 
-  std::string TranslateSpawnpoint(const NodeView&);
+  void TranslateSpawnpoint(NodeView&);
 
-  std::string TranslateSpectate(const NodeView&);
+  void TranslateSpectate(NodeView&);
 
-  std::string TranslateStopsound(const NodeView&);
+  void TranslateStopsound(NodeView&);
 
-  std::string TranslateSummon(const NodeView&);
+  void TranslateSummon(NodeView&);
 
-  std::string TranslateTag(const NodeView&);
+  void TranslateTag(NodeView&);
 
-  std::string TranslateTeamAdd(const NodeView&);
+  void TranslateTeamAdd(NodeView&);
 
-  std::string TranslateTeamJoin(const NodeView&);
+  void TranslateTeamJoin(NodeView&);
 
-  std::string TranslateTeamModify(const NodeView&);
+  void TranslateTeamModify(NodeView&);
 
-  std::string TranslateTellraw(const NodeView&);
+  void TranslateTellraw(NodeView&);
 
-  std::string TranslateTime(const NodeView&);
+  void TranslateTime(NodeView&);
 
-  std::string TranslateTitle(const NodeView&);
+  void TranslateTitle(NodeView&);
 
-  std::string TranslateTp(const NodeView&);
+  void TranslateTp(NodeView&);
 }

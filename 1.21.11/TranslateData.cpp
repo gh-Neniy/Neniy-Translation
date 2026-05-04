@@ -1,47 +1,43 @@
 #include "main/Concat.hpp"
-#include "Aux.hpp"
 #include "TranslateText.hpp"
-#include <cwchar>
 #include "TranslateData.hpp"
 
-using namespace std::literals;
+#include <concepts>
+
+using namespace std::string_view_literals;
 
 namespace {
-  std::string TranslateLore(const std::vector<Text>& lore, std::string_view source_code) {
-    std::string result = "[";
+  void TranslateLore(NodeView& node_view, const std::vector<Text>& lore) {
+    node_view.PushBack('[');
 
-    for (int i = 0; i < lore.size(); ++i) {
+    for (std::size_t i = 0; i < lore.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
-      result.append(TranslateText(lore[i], source_code));
+      TranslateText(node_view, lore[i]);
     }
 
-    result.push_back(']');
-    return result;
+    node_view.PushBack(']');
   }
 
-  std::string TranslateEnchantments(const ListType& list, std::string_view source_code) {
-    std::string result = "{";
+  void TranslateEnchantments(NodeView& node_view, const ListType& list) {
+    node_view.PushBack('{');
 
-    for (int i = 0; i < list.size(); ++i) {
+    for (std::size_t i = 0; i < list.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
-      result.append(Concat(
-        "\"minecraft:"sv, Extract(source_code, list[i].key), "\":"sv, Extract(source_code, list[i].value)
-      ));
+      node_view.Append("\"minecraft:"sv, node_view.Extract(list[i].key), "\":"sv, node_view.Extract(list[i].value));
     }
 
-    result.push_back('}');
-    return result;
+    node_view.PushBack('}');
   }
 
   struct Attribute {
     Token key;
-    std::string_view value;
+    BaseToken value;
   };
 
   struct Equipment {
@@ -51,599 +47,610 @@ namespace {
 
   struct Chance {
     Token key;
-    std::string_view chance;
+    BaseToken chance;
   };
 
-  std::string TranslateAttributes(const std::vector<Attribute>& attributes, std::string_view source_code) {
-    std::string result = "attributes:[";
+  void TranslateAttributes(NodeView& node_view, const std::vector<Attribute>& attributes) {
+    node_view.Append("attributes:[");
 
-    for (int i = 0; i < attributes.size(); ++i) {
+    for (std::size_t i = 0; i < attributes.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
       switch (attributes[i].key.type) {
         case TokenType::AttackDamage:
-          result.append(Concat("{id:\"minecraft:attack_damage\",base:"sv, attributes[i].value, "}"sv));
+          node_view.Append("{id:\"minecraft:attack_damage\",base:"sv, node_view.Extract(attributes[i].value), "}"sv);
           break;
         case TokenType::AttackSpeed:
-          result.append(Concat("{id:\"minecraft:attack_speed\",base:"sv, attributes[i].value, "}"sv));
+          node_view.Append("{id:\"minecraft:attack_speed\",base:"sv, node_view.Extract(attributes[i].value), "}"sv);
           break;
         case TokenType::Health:
-          result.append(Concat("{id:\"minecraft:max_health\",base:"sv, attributes[i].value, "}"sv));
+          node_view.Append("{id:\"minecraft:max_health\",base:"sv, node_view.Extract(attributes[i].value), "}"sv);
           break;
         case TokenType::Stability:
-          result.append(Concat("{id:\"minecraft:knockback_resistance\",base:"sv, attributes[i].value, "}"sv));
+          node_view.Append("{id:\"minecraft:knockback_resistance\",base:"sv, node_view.Extract(attributes[i].value), "}"sv);
           break;
         default:
-          throw std::logic_error(Concat("Internal translation error - unknown attribute "sv, Extract(source_code, attributes[i].key)));
+          throw std::logic_error(Concat("Internal translation error - unknown attribute "sv, node_view.Extract(attributes[i].key)));
       }
     }
 
-    result.push_back(']');
-
-    return result;
+    node_view.PushBack(']');
   }
 
-  std::string TranslateEquipmentUnit( const IdWithDataPtr& id_with_data_ptr, std::string_view unit_name,
-                                      std::string_view source_code) {
-    std::string equipment_unit = Concat(
-      unit_name,
-      ":{id:\"minecraft:"sv,
-      Extract(source_code, id_with_data_ptr->identifier),
-      "\""sv
-    );
+  void TranslateEquipmentUnit(NodeView& node_view, const IdWithDataPtr& id_with_data_ptr, std::string_view unit_name) {
+    node_view.Append(unit_name, ":{id:\"minecraft:"sv, node_view.Extract(id_with_data_ptr->identifier), "\""sv);
 
     const auto& data_units = id_with_data_ptr->units;
 
     if (data_units.empty()) {
-      equipment_unit.push_back('}');
-      return equipment_unit;
+      node_view.PushBack('}');
+      return;
     }
     
-    equipment_unit.append(",components:{");
-    equipment_unit.append(TranslateItemData(data_units, source_code, ":"sv));
-    equipment_unit.append("}}");
-
-    return equipment_unit;
+    node_view.Append(",components:{");
+    TranslateItemData(node_view, data_units, ":"sv);
+    node_view.Append("}}"sv);
   }
 
-  std::string TranslateEquipment(const std::vector<Equipment>& equipment, std::string_view source_code) {
-    std::string result = "equipment:{";
+  void TranslateEquipment(NodeView& node_view, const std::vector<Equipment>& equipment) {
+    node_view.Append("equipment:{");
 
-    for (int i = 0; i < equipment.size(); ++i) {
+    for (std::size_t i = 0; i < equipment.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
       switch (equipment[i].key.type) {
         case TokenType::Chest:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "chest", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "chest");
           break;
         case TokenType::Feet:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "feet", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "feet");
           break;
         case TokenType::Head:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "head", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "head");
           break;
         case TokenType::LeftHand:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "offhand", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "offhand");
           break;
         case TokenType::Legs:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "legs", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "legs");
           break;
         case TokenType::RightHand:
-          result.append(TranslateEquipmentUnit(equipment[i].value, "mainhand", source_code));
+          TranslateEquipmentUnit(node_view, equipment[i].value, "mainhand");
           break;
         default:
           throw std::logic_error(Concat(
-            "Internal translation error - unknown equipment key "sv, Extract(source_code, equipment[i].key)
+            "Internal translation error - unknown equipment key "sv, node_view.Extract(equipment[i].key)
           ));
       }
     }
 
-    result.push_back('}');
-
-    return result;
+    node_view.PushBack('}');
   }
 
-  std::string TranslateTags(const std::vector<std::string_view>& tags, std::string_view source_code) {
-    std::string result = "Tags:[";
+  void TranslateTags(NodeView& node_view, const std::vector<BaseToken>& tags) {
+    node_view.Append("Tags:[");
 
     for (int i = 0; i < tags.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
-      result.append(tags[i]);
+      node_view.Append(node_view.Extract(tags[i]));
     }
 
-    result.push_back(']');
-
-    return result;
+    node_view.PushBack(']');
   }
 
-  std::string TranslateNumericList(const ListType& list, std::string_view source_code) {
-    std::string result = "[";
+  void TranslateNumericList(NodeView& node_view, const ListType& list) {
+    node_view.PushBack('[');
 
-    for (int i = 0; i < list.size(); ++i) {
+    for (std::size_t i = 0; i < list.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
-      result.append(Extract(source_code, list[i].key));
+      node_view.Append(node_view.Extract(list[i].key));
     }
 
-    result.push_back(']');
-
-    return result;
+    node_view.PushBack(']');
   }
 
-  std::string TranslateChances(const std::vector<Chance>& chances, std::string_view source_code) {
-    std::string result = "drop_chances:{";
+  void TranslateChances(NodeView& node_view, const std::vector<Chance>& chances) {
+    node_view.Append("drop_chances:{");
 
-    for (int i = 0; i < chances.size(); ++i) {
+    for (std::size_t i = 0; i < chances.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
       switch (chances[i].key.type) {
         case TokenType::ChestChance:
-          result.append(Concat("chest:"sv, chances[i].chance));
+          node_view.Append("chest:"sv, node_view.Extract(chances[i].chance));
           break;
         case TokenType::FeetChance:
-          result.append(Concat("feet:"sv, chances[i].chance));
+          node_view.Append("feet:"sv, node_view.Extract(chances[i].chance));
           break;
         case TokenType::HeadChance:
-          result.append(Concat("head:"sv, chances[i].chance));
+          node_view.Append("head:"sv, node_view.Extract(chances[i].chance));
           break;
         case TokenType::LeftHandChance:
-          result.append(Concat("offhand:"sv, chances[i].chance));
+          node_view.Append("offhand:"sv, node_view.Extract(chances[i].chance));
           break;
         case TokenType::LegsChance:
-          result.append(Concat("legs:"sv, chances[i].chance));
+          node_view.Append("legs:"sv, node_view.Extract(chances[i].chance));
           break;
         case TokenType::RightHandChance:
-          result.append(Concat("mainhand:"sv, chances[i].chance));
+          node_view.Append("mainhand:"sv, node_view.Extract(chances[i].chance));
           break;
         default:
           throw std::logic_error("Internal translation error - unknown key type in TranslateChances()");
       }
     }
 
-    result.push_back('}');
-
-    return result;
+    node_view.PushBack('}');
   }
 
-  void AppendUnit(std::string& result, std::string_view to_append) {
-    if (!result.empty()) {
-      result.push_back(',');
+  template <std::same_as<std::string_view>... StringViews>
+  void AppendUnit(NodeView& node_view, bool cond, StringViews... args) {
+    if (cond) {
+      node_view.PushBack(',');
     }
 
-    result.append(to_append);
+    node_view.Append(args...);
   }
 
-  void BlockDataSwitch(const DataUnit& unit, std::string& result, std::string& special_result, std::string_view source_code, std::string_view separator) {
+  void BlockDataSwitch(NodeView& node_view, const DataUnit& unit, std::string_view separator, std::vector<Text>& sign_msgs) {
+    bool cond = node_view.Result().back() != '[';
+
     switch (unit.key.type) {
       case TokenType::Axis:
-        AppendUnit(result, Concat("axis"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "axis"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::East:
-        AppendUnit(result, Concat("east"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "east"sv, separator, "true"sv);
         break;
       case TokenType::Facing:
-        AppendUnit(result, Concat("facing"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "facing"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Half:
-        AppendUnit(result, Concat("half"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "half"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Level:
-        AppendUnit(result, Concat("level"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "level"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Lit:
-        AppendUnit(result, Concat("lit"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "lit"sv, separator, "true"sv);
         break;
       case TokenType::North:
-        AppendUnit(result, Concat("north"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "north"sv, separator, "true"sv);
         break;
       case TokenType::Open:
-        AppendUnit(result, Concat("open"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "open"sv, separator, "true"sv);
         break;
       case TokenType::Powered:
-        AppendUnit(result, Concat("powered"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "powered"sv, separator, "true"sv);
         break;
       case TokenType::Sign:
-        AppendUnit(special_result, Concat("front_text:{messages:"sv, Sv(TranslateLore(std::get<std::vector<Text>>(unit.value), source_code)), "}"sv));
+        sign_msgs = std::get<std::vector<Text>>(unit.value);
         break;
       case TokenType::South:
-        AppendUnit(result, Concat("south"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "south"sv, separator, "true"sv);
         break;
       case TokenType::West:
-        AppendUnit(result, Concat("west"sv, separator, "true"sv));
+        AppendUnit(node_view, cond, "west"sv, separator, "true"sv);
         break;
       default:
-        throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in block data"sv));
+        throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in block data"sv));
     }
   }
 
-  void AppendItem(std::string& result, const IdWithDataPtr& id_with_data_ptr, bool about, std::string_view source_code) {
-    if (!result.empty()) {
-      result.push_back(',');
+  void AppendItem(NodeView& node_view, const IdWithDataPtr& id_with_data_ptr, bool about) {
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
     }
-  
-    result.append(
-      Concat(about ? "i"sv : "I"sv, "tem:{id:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv)
-    );
+
+    node_view.Append(about ? "i"sv : "I"sv, "tem:{id:\"minecraft:"sv, node_view.Extract(id_with_data_ptr->identifier), "\""sv);
   
     if (!id_with_data_ptr->units.empty()) {
-      result.append(",components:{");
-      result.append(TranslateItemData(id_with_data_ptr->units, source_code, ":"));
+      node_view.Append(",components:{");
+      TranslateItemData(node_view, id_with_data_ptr->units, ":");
+      node_view.PushBack('}');
     }
   
-    result.append("}}");
+    node_view.PushBack('}');
   }
 
-  void TranslateBlockState(std::string& result, const DataUnit& unit, std::string_view source_code, bool is_falling_block) {
-    if (!result.empty()) {
-      result.push_back(',');
+  void TranslateBlockState(NodeView& node_view, const DataUnit& unit, bool is_falling_block) {
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
     }
 
     const auto& id_with_data_ptr = std::get<IdWithDataPtr>(unit.value);
-
     std::string_view block_state = is_falling_block ? "BlockState" : "block_state";
 
-    result.append(Concat(block_state, ":{Name:\"minecraft:"sv, Extract(source_code, id_with_data_ptr->identifier), "\""sv));
+    node_view.Append(block_state, ":{Name:\"minecraft:"sv, node_view.Extract(id_with_data_ptr->identifier), "\""sv);
 
     const auto& data_units = id_with_data_ptr->units;
+
     if (!data_units.empty()) {
-      result.append(Concat (
-        ",Properties:{"sv, Sv(TranslateBlockData(data_units, source_code, ":").first), "}"sv
-      ));
+      node_view.Append(",Properties:{");
+      TranslateBlockData(node_view, data_units, ":");
+      node_view.PushBack('}');
     }
 
-    result.push_back('}');
+    node_view.PushBack('}');
   }
 
-  void EntityDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::vector<Attribute>& attributes,
-                        std::vector<Equipment>& equipment, std::vector<std::string_view>& tags, std::vector<Chance>& chances) {
+  void EntityDataSwitch(NodeView& node_view, const DataUnit& unit, std::vector<Attribute>& attributes,
+                        std::vector<Equipment>& equipment, std::vector<BaseToken>& tags, std::vector<Chance>& chances) {
+    bool cond = node_view.Result().back() != '{';
+
     switch (unit.key.type) {
       case TokenType::About:
-        AppendItem(result, std::get<IdWithDataPtr>(unit.value), true, source_code);
+        AppendItem(node_view, std::get<IdWithDataPtr>(unit.value), true);
         break;
       case TokenType::AttackDamage:
-        attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        attributes.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::AttackSpeed:
-        attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        attributes.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Block:
-        TranslateBlockState(result, unit, source_code, true);
+        TranslateBlockState(node_view, unit, true);
         break;
       case TokenType::CanGrab:
-        AppendUnit(result, "CanPickUpLoot:1b");
+        AppendUnit(node_view, cond, "CanPickUpLoot:1b"sv);
         break;
       case TokenType::Chest:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::ChestChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Crit:
-        AppendUnit(result, "crit:1b");
+        AppendUnit(node_view, cond, "crit:1b"sv);
         break;
       case TokenType::Feet:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::FeetChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Head:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::HeadChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Health: {
         auto points = std::get<BaseToken>(unit.value);
-        attributes.emplace_back(unit.key, Extract(source_code, points));
+        attributes.emplace_back(unit.key, points);
 
-        AppendUnit(result, Concat("Health:"sv, Extract(source_code, points)));
+        AppendUnit(node_view, cond, "Health:"sv, node_view.Extract(points));
         break;
       }
       case TokenType::Id: // id for block_display
-        TranslateBlockState(result, unit, source_code, false);
+        TranslateBlockState(node_view, unit, false);
         break;
       case TokenType::InGround:
-        AppendUnit(result, "inGround:1b");
+        AppendUnit(node_view, cond, "inGround:1b"sv);
         break;
       case TokenType::Invisible:
-        AppendUnit(result, "Invisible:1b");
+        AppendUnit(node_view, cond, "Invisible:1b"sv);
         break;
       case TokenType::Invulnerable:
-        AppendUnit(result, "Invulnerable:1b");
+        AppendUnit(node_view, cond, "Invulnerable:1b"sv);
         break;
-      case TokenType::Item: {
-        AppendItem(result, std::get<IdWithDataPtr>(unit.value), false, source_code);
+      case TokenType::Item:
+        AppendItem(node_view, std::get<IdWithDataPtr>(unit.value), false);
         break;
-      }
       case TokenType::LeftHand:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::LeftHandChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Legs:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::LegsChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::LootTable:
-        AppendUnit(result, Concat("DeathLootTable:\""sv, Extract(source_code, std::get<BaseToken>(unit.value)), "\""sv));
+        AppendUnit(node_view, cond, "DeathLootTable:\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\""sv);
         break;
-      case TokenType::Name: {
-        const auto& text = std::get<Text>(unit.value);
-
-        AppendUnit(result, Concat("CustomName:"sv, Sv(TranslateText(text, source_code))));
+      case TokenType::Name:
+        AppendUnit(node_view, cond, "CustomName:"sv);
+        TranslateText(node_view, std::get<Text>(unit.value));
         break;
-      }
-      case TokenType::NameVisible: {
-        AppendUnit(result, "CustomNameVisible:1b");
+      case TokenType::NameVisible:
+        AppendUnit(node_view, cond, "CustomNameVisible:1b"sv);
         break;
-      }
       case TokenType::NoAI:
-        AppendUnit(result, "NoAI:1b");
+        AppendUnit(node_view, cond, "NoAI:1b"sv);
         break;
       case TokenType::NoDespawn:
-        AppendUnit(result, "PersistenceRequired:1b");
+        AppendUnit(node_view, cond, "PersistenceRequired:1b"sv);
         break;
       case TokenType::NoGravity:
-        AppendUnit(result, "NoGravity:1b");
+        AppendUnit(node_view, cond, "NoGravity:1b"sv);
         break;
       case TokenType::PickupDelay:
-        AppendUnit(result, Concat("PickupDelay:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "PickupDelay:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Stability:
-        attributes.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        attributes.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::RightHand:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::RightHandChance:
-        chances.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        chances.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Rotation:
-        AppendUnit(result, Concat("Rotation:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
+        AppendUnit(node_view, cond, "Rotation:"sv);
+        TranslateNumericList(node_view, std::get<ListType>(unit.value));
         break;
       case TokenType::Silent:
-        AppendUnit(result, "Silent:1b");
+        AppendUnit(node_view, cond, "Silent:1b"sv);
         break;
       case TokenType::Size:
-        AppendUnit(result, Concat("Size:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "Size:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Tag:
-        tags.push_back(Extract(source_code, std::get<BaseToken>(unit.value)));
+        tags.push_back(std::get<BaseToken>(unit.value));
         break;
       case TokenType::TeleportDuration:
-        AppendUnit(result, Concat("teleport_duration:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "teleport_duration:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       default:
-        throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in entity data"sv));
+        throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in entity data"sv));
     }
   }
 
   struct PotionUnit {
     Token key;
-    std::string_view value;
+    BaseToken value;
   };
 
-  struct AttributeModifier {
+  struct AttributeModifier { // for items
     Token key;
-    std::string_view value;
+    BaseToken value;
   };
 
-  void ItemDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code, std::string_view separator,
-                      std::vector<PotionUnit>& potion_contents, std::vector<AttributeModifier>& attribute_modifiers) {
+  void ItemDataSwitch(NodeView& node_view, const DataUnit& unit, std::string_view separator,
+                      std::vector<PotionUnit>& potion_contents, std::vector<AttributeModifier>& attribute_modifiers, bool cond) {
     switch (unit.key.type) {
       case TokenType::AttackDamage:
-        attribute_modifiers.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        attribute_modifiers.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::AttackSpeed:
-        attribute_modifiers.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        attribute_modifiers.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::CanPlaceOn:
-        AppendUnit(result, Concat (
-          "can_place_on"sv, separator, "{\"blocks\":\""sv, Extract(source_code, std::get<BaseToken>(unit.value)), "\"}"sv
-        ));
-
+        AppendUnit(node_view, cond, "can_place_on"sv, separator, "{\"blocks\":\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\"}"sv);
         break;
       case TokenType::Enchantments:
-        AppendUnit(result, Concat (
-          "enchantments"sv, separator, Sv(TranslateEnchantments(std::get<ListType>(unit.value), source_code))
-        ));
-
+        AppendUnit(node_view, cond, "enchantments"sv, separator);
+        TranslateEnchantments(node_view, std::get<ListType>(unit.value));
         break;
       case TokenType::Hide:
-        AppendUnit(result, Concat("tooltip_display"sv, separator, "{hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}"sv));
+        AppendUnit(node_view, cond, "tooltip_display"sv, separator, "{hidden_components:[\"attribute_modifiers\",\"enchantments\",\"unbreakable\",\"can_place_on\",\"potion_contents\"]}"sv);
         break;
-      case TokenType::Lore: {
-        const auto& lore = std::get<std::vector<Text>>(unit.value);
-
-        AppendUnit(result, Concat("lore"sv, separator, Sv(TranslateLore(lore, source_code))));
+      case TokenType::Lore:
+        AppendUnit(node_view, cond, "lore"sv, separator);
+        TranslateLore(node_view, std::get<std::vector<Text>>(unit.value));
         break;
-      }
-      case TokenType::Name: {
-        const auto& name = std::get<Text>(unit.value);
-
-        AppendUnit(result, Concat("custom_name"sv, separator, Sv(TranslateText(name, source_code))));
+      case TokenType::Name:
+        AppendUnit(node_view, cond, "custom_name"sv, separator);
+        TranslateText(node_view, std::get<Text>(unit.value));
         break;
-      }
       case TokenType::Potion:
-        potion_contents.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        potion_contents.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::PotionColor:
-        potion_contents.emplace_back(unit.key, Extract(source_code, std::get<BaseToken>(unit.value)));
+        potion_contents.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
       case TokenType::Shine:
-        AppendUnit(result, Concat("enchantment_glint_override"sv, separator, "1b"sv));
+        AppendUnit(node_view, cond, "enchantment_glint_override"sv, separator, "1b"sv);
         break;
       case TokenType::Stack:
-        AppendUnit(result, Concat("max_stack_size"sv, separator, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "max_stack_size"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::Tag:
-        AppendUnit(result, Concat (
+        AppendUnit(node_view, cond, 
           separator == "=" ? "custom_data" : "\"minecraft:custom_data\""sv, separator,
-          "{tag:"sv, Extract(source_code, std::get<BaseToken>(unit.value)), "}"sv
-        ));
+          "{tag:"sv, node_view.Extract(std::get<BaseToken>(unit.value)), "}"sv
+        );
         break;
       case TokenType::Unbreakable:
-        AppendUnit(result, Concat("unbreakable"sv, separator, "{}"sv));
+        AppendUnit(node_view, cond, "unbreakable"sv, separator, "{}"sv);
         break;
       default:
-        throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in item data"sv));
+        throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in item data"sv));
     }
   }
 
-  void ParticleDataSwitch(const DataUnit& unit, std::string& result, std::string_view source_code) {
+  void ParticleDataSwitch(NodeView& node_view, const DataUnit& unit) {
+    bool cond = node_view.Result().back() != '{';
+
     switch (unit.key.type) {
       case TokenType::Block:
-        AppendUnit(result, Concat("block_state:"sv, Extract(source_code, std::get<IdWithDataPtr>(unit.value)->identifier)));
+        AppendUnit(node_view, cond, "block_state:"sv, node_view.Extract(std::get<IdWithDataPtr>(unit.value)->identifier));
         break;
       case TokenType::FromColor:
-        AppendUnit(result, Concat("from_color:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
+        AppendUnit(node_view, cond, "from_color:"sv);
+        TranslateNumericList(node_view, std::get<ListType>(unit.value));
         break;
       case TokenType::Item:
-        AppendUnit(result, Concat("item:"sv, Extract(source_code, std::get<IdWithDataPtr>(unit.value)->identifier)));
+        AppendUnit(node_view, cond, "item:"sv, node_view.Extract(std::get<IdWithDataPtr>(unit.value)->identifier));
         break;
       case TokenType::Scale:
-        AppendUnit(result, Concat("scale:"sv, Extract(source_code, std::get<BaseToken>(unit.value))));
+        AppendUnit(node_view, cond, "scale:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       case TokenType::ToColor:
-        AppendUnit(result, Concat("to_color:"sv, Sv(TranslateNumericList(std::get<ListType>(unit.value), source_code))));
+        AppendUnit(node_view, cond, "to_color:"sv);
+        TranslateNumericList(node_view, std::get<ListType>(unit.value));
         break;
       default:
-        throw std::runtime_error(Concat("Translation error - unknown key "sv, Extract(source_code, unit.key), " in particle data"sv));
+        throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in particle data"sv));
     }
   }
 
-  std::string TranslatePotionContents(const std::vector<PotionUnit>& potion_contents, std::string_view source_code,
-                                      std::string_view separator) {
-    std::string result = Concat("potion_contents"sv, separator, "{"sv);
+  void TranslatePotionContents(NodeView& node_view, const std::vector<PotionUnit>& potion_contents, std::string_view separator) {
+    node_view.Append("potion_contents"sv, separator, "{"sv);
 
-    for (int i = 0; i < potion_contents.size(); ++i) {
+    for (std::size_t i = 0; i < potion_contents.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
       switch (potion_contents[i].key.type) {
         case TokenType::Potion:
-          result.append(Concat("potion:"sv, potion_contents[i].value));
+          node_view.Append("potion:"sv, node_view.Extract(potion_contents[i].value));
           break;
         case TokenType::PotionColor:
-          result.append(Concat("custom_color:"sv, potion_contents[i].value));
+          node_view.Append("custom_color:"sv, node_view.Extract(potion_contents[i].value));
           break;
         default:
           throw std::logic_error (
-            Concat("Internal translation error - unknown potion unit "sv, Extract(source_code, potion_contents[i].key))
+            Concat("Internal translation error - unknown potion unit "sv, node_view.Extract(potion_contents[i].key))
           );
       }
     }
 
-    result.push_back('}');
-
-    return result;
+    node_view.PushBack('}');
   }
 
-  std::string TranslateAttributeModifiers(const std::vector<AttributeModifier>& attribute_modifiers, std::string_view source_code,
+  void TranslateAttributeModifiers(NodeView& node_view, const std::vector<AttributeModifier>& attribute_modifiers,
                                           std::string_view separator) {
-    std::string result = Concat("attribute_modifiers"sv, separator, "["sv);
+    node_view.Append("attribute_modifiers"sv, separator, "["sv);
 
-    for (int i = 0; i < attribute_modifiers.size(); ++i) {
+    for (std::size_t i = 0; i < attribute_modifiers.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
 
-      std::string_view attribute_name = Extract(source_code, attribute_modifiers[i].key);
+      std::string_view attribute_name = node_view.Extract(attribute_modifiers[i].key);
 
-      result.append(Concat (
+      node_view.Append(
         "{type:\"minecraft:"sv, attribute_name,
-        "\",amount:"sv, attribute_modifiers[i].value,
+        "\",amount:"sv, node_view.Extract(attribute_modifiers[i].value),
         ",operation:\"add_value\",slot:\"mainhand\",id:\"base_"sv, attribute_name, "\"}"sv
-      ));
+      );
     }
 
-    result.push_back(']');
-
-    return result;
+    node_view.PushBack(']');
   }
 }
 
-std::pair<std::string, std::string> TranslateBlockData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator) {
-  std::string result;
-  std::string special_result; // for sign
+void TranslateBlockData(NodeView& node_view, const std::vector<DataUnit>& units, std::string_view separator) {
+  std::vector<Text> sign_msgs;
+
+  node_view.PushBack('[');
 
   for (const auto& unit : units) {
-    BlockDataSwitch(unit, result, special_result, source_code, separator); 
+    BlockDataSwitch(node_view, unit, separator, sign_msgs); 
   }
 
-  return {std::move(result), std::move(special_result)};
+  node_view.PushBack(']');
+
+  if (!sign_msgs.empty()) {
+    node_view.Append("{front_text:{messages:");
+    TranslateLore(node_view, sign_msgs);
+    node_view.Append("}}");
+  }
 }
 
-std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code) {
+void TranslateEntityData(NodeView& node_view, const std::vector<DataUnit>& units) {
   std::vector<Attribute> attributes;
   std::vector<Equipment> equipment;
-  std::vector<std::string_view> tags;
+  std::vector<BaseToken> tags;
   std::vector<Chance> chances;
 
-  std::string result;
+  node_view.PushBack('{');
 
   for (const auto& unit : units) {
-    EntityDataSwitch(unit, result, source_code, attributes, equipment, tags, chances);
+    EntityDataSwitch(node_view, unit, attributes, equipment, tags, chances);
   }
 
   if (!attributes.empty()) {
-    AppendUnit(result, TranslateAttributes(attributes, source_code));
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
+    }
+
+    TranslateAttributes(node_view, attributes);
   }
   if (!equipment.empty()) {
-    AppendUnit(result, TranslateEquipment(equipment, source_code));
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
+    }
+
+    TranslateEquipment(node_view, equipment);
   }
   if (!tags.empty()) {
-    AppendUnit(result, TranslateTags(tags, source_code));
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
+    }
+
+    TranslateTags(node_view, tags);
   }
   if (!chances.empty()) {
-    AppendUnit(result, TranslateChances(chances, source_code));
+    if (node_view.Result().back() != '{') {
+      node_view.PushBack(',');
+    }
+
+    TranslateChances(node_view, chances);
   }
 
-  return result;
+  node_view.PushBack('}');
 }
 
-std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator) {
+void TranslateItemData(NodeView& node_view, const std::vector<DataUnit>& units, std::string_view separator) {
   std::vector<PotionUnit> potion_contents;
   std::vector<AttributeModifier> attribute_modifiers;
-  
-  std::string result;
+  bool comma_required = false;
+  std::size_t initial_size;
 
   for (const auto& unit : units) {
-    ItemDataSwitch(unit, result, source_code, separator, potion_contents, attribute_modifiers);
+    if (!comma_required) {
+      initial_size = node_view.Result().size();
+    }
+
+    ItemDataSwitch(node_view, unit, separator, potion_contents, attribute_modifiers, comma_required);
+
+    if (!comma_required && node_view.Result().size() > initial_size) {
+      comma_required = true;
+    }
   }
 
   if (!potion_contents.empty()) {
-    AppendUnit(result, TranslatePotionContents(potion_contents, source_code, separator));
+    if (comma_required) {
+      node_view.PushBack(',');
+    }
+
+    TranslatePotionContents(node_view, potion_contents, separator);
+    comma_required = true;
   }
   if (!attribute_modifiers.empty()) {
-    AppendUnit(result, TranslateAttributeModifiers(attribute_modifiers, source_code, separator));
-  }
+    if (comma_required) {
+      node_view.PushBack(',');
+    }
 
-  return result;
+    TranslateAttributeModifiers(node_view, attribute_modifiers, separator);
+  }
 }
 
-std::string TranslateParticleData(const std::vector<DataUnit>& units, std::string_view source_code) {
-  std::string result;
+void TranslateParticleData(NodeView& node_view, const std::vector<DataUnit>& units) {
+  node_view.PushBack('{');
 
   for (const auto& unit : units) {
-    ParticleDataSwitch(unit, result, source_code);
+    ParticleDataSwitch(node_view, unit);
   }
 
-  return result;
+  node_view.PushBack('}');
 }

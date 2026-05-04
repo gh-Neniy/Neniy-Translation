@@ -1,60 +1,52 @@
-#include "main/Concat.hpp"
-#include "Aux.hpp"
 #include "TranslateText.hpp"
 
-using namespace std::literals;
+using namespace std::string_view_literals;
 
 namespace {
-  std::string TranslateUnit(const TextUnit& unit, std::string_view source_code) {
-    std::string result = Concat(
-      "text:\""sv,
-      Extract(source_code, unit.source),
-      "\""sv
-    );
+  void TranslateUnit(NodeView& node_view, const TextUnit& unit) {
+    node_view.Append("text:\""sv, node_view.Extract(unit.source), "\""sv);
     
     if (unit.color.start <= unit.color.end) {
-      result.append(Concat(
-        ",color:\""sv, Extract(source_code, unit.color),
-        "\",italic:"sv, unit.italic ? "true"sv : "false"sv
-      ));
+      node_view.Append(",color:\""sv, node_view.Extract(unit.color), "\""sv);
     }
+    
+    node_view.Append(",italic:"sv, unit.italic ? "true"sv : "false"sv);
 
     if (unit.bold) {
-      result.append(",bold:true");
-    }
-    if (unit.hieroglyph) {
-      result.append(",font:\"minecraft:alt\"");
+      node_view.Append(",bold:true");
     }
 
-    return result;
+    if (unit.hieroglyph) {
+      node_view.Append(",font:\"minecraft:alt\"");
+    }
   }
 }
 
-std::string TranslateText(const Text& text, std::string_view source_code) {
+void TranslateText(NodeView& node_view, const Text& text) {
   if (text.units.empty()) {
-    return "{text:\"\"}";
+    node_view.Append("{text:\"\"}");
+    return;
   }
 
-  std::string result = "{";
-  result.append(TranslateUnit(text.units[0], source_code));
+  node_view.PushBack('{');
+  TranslateUnit(node_view, text.units[0]);
   
   if (text.units.size() == 1) {
-    result.push_back('}');
-    return result;
+    node_view.PushBack('}');
+    return;
   }
 
-  result.append(",extra:[");
+  node_view.Append(",extra:[");
   
   for (int i = 1; i < text.units.size(); ++i) {
     if (i > 1) {
-      result.push_back(',');
+      node_view.PushBack(',');
     }
 
-    result.push_back('{');
-    result.append(TranslateUnit(text.units[i], source_code));
-    result.push_back('}');
+    node_view.PushBack('{');
+    TranslateUnit(node_view, text.units[i]);
+    node_view.PushBack('}');
   }
 
-  result.append("]}");
-  return result;
+  node_view.Append("]}");
 }

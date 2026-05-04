@@ -1,7 +1,8 @@
 #pragma once
 
 #include "synt/Text.hpp"
+#include "trans/NodeView.hpp"
 
-#include <string>
+// Text is passed because of ambiguity of node type (TextNode or SelectorTextNode)
 
-std::string TranslateText(const Text& text, std::string_view source_code);
+void TranslateText(NodeView& node_view, const Text& text);

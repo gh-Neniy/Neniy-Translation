@@ -1,73 +1,59 @@
-#include "Aux.hpp"
-#include "main/Concat.hpp"
 #include "TranslateData.hpp"
-#include "TranslateSelector.hpp"
 
-using namespace std::literals;
+using namespace std::string_view_literals;
 
 namespace {
-  std::string TranslateList(const ListType& list, std::string_view source_code) { // without braces
-    std::string result;
-
-    for (int i = 0; i < list.size(); ++i) {
+  void TranslateList(NodeView& node_view, const ListType& list) { // without braces
+    for (std::size_t i = 0; i < list.size(); ++i) {
       if (i > 0) {
-        result.push_back(',');
+        node_view.PushBack(',');
       }
       
-      result.append(Concat(Extract(source_code, list[i].key), "="sv, Extract(source_code, list[i].value)));
+      node_view.Append(node_view.Extract(list[i].key), "="sv, node_view.Extract(list[i].value));
     }
-
-    return result;
   }
 
-  std::string TranslateSelectorUnit(const SelectorUnit& unit, std::string_view source_code) {
-    std::string result;
-
+  void TranslateSelectorUnit(NodeView& node_view, const SelectorUnit& unit) {
     if (std::holds_alternative<BaseToken>(unit.value)) {
-      std::string_view key = Extract(source_code, unit.key);
+      std::string_view key = node_view.Extract(unit.key);
 
       if (key == "gm") {
         key = "gamemode";
       }
 
-      result.append(key);
-      result.push_back('=');
-
-      auto value = std::get<BaseToken>(unit.value);
-      result.append(Extract(source_code, value));
+      node_view.Append(key, "="sv, node_view.Extract(std::get<BaseToken>(unit.value)));
     } else if (std::holds_alternative<DataPtr>(unit.value)) {
-      result.append("nbt=");
+      const auto& units = std::get<DataPtr>(unit.value)->units;
 
-      const auto& value = std::get<DataPtr>(unit.value);
-      result.push_back('{');
-      result.append(TranslateEntityData(value->units, source_code)); // nbt={...}
-      result.push_back('}');
+      node_view.Append("nbt={");
+      TranslateEntityData(node_view, units);
+      node_view.PushBack('}');
+
     } else { // ListType, scores
-      result.append(Concat("scores={"sv, Sv(TranslateList(std::get<ListType>(unit.value), source_code)), "}"sv));
-    }
 
-    return result;
+      node_view.Append("scores={");
+      TranslateList(node_view, std::get<ListType>(unit.value));
+      node_view.PushBack('}');
+    }
   }
 }
 
-std::string TranslateSelector(const Selector& selector, std::string_view source_code) {
-  std::string result;
-  result.append(Extract(source_code, selector.stem));
+void TranslateSelector(NodeView& node_view, const Selector& selector) {
+  node_view.Append(node_view.Extract(selector.stem));
 
   if (selector.units.empty()) {
-    return result;
+    return;
   }
 
-  result.push_back('[');
+  node_view.PushBack('[');
 
-  for (int i = 0; i < selector.units.size(); ++i) {
+  for (std::size_t i = 0; i < selector.units.size(); ++i) {
     if (i > 0) {
-      result.push_back(',');
+      node_view.PushBack(',');
     }
 
-    result.append(TranslateSelectorUnit(selector.units[i], source_code));
+    TranslateSelectorUnit(node_view, selector.units[i]);
   }
 
-  result.push_back(']');
-  return result;
+  node_view.PushBack(']');
 }

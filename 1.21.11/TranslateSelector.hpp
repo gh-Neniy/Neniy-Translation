@@ -1,7 +1,6 @@
 #pragma once
 
 #include "synt/Selector.hpp"
+#include "trans/NodeView.hpp"
 
-#include <string>
-
-std::string TranslateSelector(const Selector& selector, std::string_view source_code);
+void TranslateSelector(NodeView& node_view, const Selector& selector);

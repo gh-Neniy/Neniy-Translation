@@ -1,15 +1,15 @@
 #pragma once
 
 #include "synt/Data.hpp"
+#include "trans/NodeView.hpp"
 
-#include <string>
+// units are passed because of ambiguity
 
-// All functions return data without braces
+void TranslateBlockData(NodeView& node_view, const std::vector<DataUnit>& units, std::string_view separator);
 
-std::pair<std::string, std::string> TranslateBlockData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator);
+void TranslateEntityData(NodeView& node_view, const std::vector<DataUnit>& units);
 
-std::string TranslateEntityData(const std::vector<DataUnit>& units, std::string_view source_code);
+// item data without braces
+void TranslateItemData(NodeView& node_view, const std::vector<DataUnit>& units, std::string_view separator);
 
-std::string TranslateItemData(const std::vector<DataUnit>& units, std::string_view source_code, std::string_view separator);
-
-std::string TranslateParticleData(const std::vector<DataUnit>& units, std::string_view source_code);
+void TranslateParticleData(NodeView& node_view, const std::vector<DataUnit>& units);
