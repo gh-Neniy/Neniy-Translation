@@ -315,6 +315,9 @@ namespace {
         AppendUnit(node_view, comma_required, "Health:"sv, node_view.Extract(points));
         break;
       }
+      case TokenType::HurtTime:
+        AppendUnit(node_view, comma_required, "HurtTime:"sv, node_view.Extract(std::get<BaseToken>(unit.value)), "s"sv);
+        break;
       case TokenType::Id: // id for block_display
         TranslateBlockState(node_view, unit, false, comma_required);
         break;
