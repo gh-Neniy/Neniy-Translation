@@ -97,6 +97,20 @@ namespace {
   }
 
   void TranslateExecuteScore(NodeView& node_view) {
+    if (node_view.ArgsSize() == 5) { // for operators
+      node_view.Append(
+        node_view.Extract(0),
+        " score "sv,
+        node_view.Extract(1), " "sv,  // entity
+        node_view.Extract(2), " "sv,  // objective
+        node_view.Extract(3), " "sv,  // operator
+        node_view.Extract(4), " "sv,  // second entity
+        node_view.Extract(2)          // same objective
+      );
+
+      return;
+    }
+
     node_view.Append(
       node_view.Extract(0),
       " score "sv
@@ -144,6 +158,16 @@ namespace {
       " "sv, node_view.Extract(current_arg),
       " "sv, node_view.Extract(current_arg + 1),
       " "sv, node_view.Extract(current_arg + 2)
+    );
+  }
+
+  void TranslateExecuteStoreStorage(NodeView& node_view) {
+    node_view.Append(
+      "store result storage "sv,
+      node_view.Extract(0), " "sv,
+      node_view.Extract(1), " "sv,
+      node_view.Extract(2), " "sv,
+      node_view.Extract(3)
     );
   }
 
@@ -319,6 +343,9 @@ void TranslateExecute(NodeView& node_view, std::string_view function_prefix, con
       case CommandType::ExecuteAlign:
         node_view.Append("align "sv, subnode_view.Extract(0));
         break;
+      case CommandType::ExecuteAnchored:
+        node_view.Append("anchored "sv, subnode_view.Extract(0));
+        break;
       case CommandType::ExecuteAs:
         TranslateExecuteAs(subnode_view);
         break;
@@ -351,6 +378,9 @@ void TranslateExecute(NodeView& node_view, std::string_view function_prefix, con
         break;
       case CommandType::ExecuteStoreEntity:
         TranslateExecuteStoreEntity(subnode_view);
+        break;
+      case CommandType::ExecuteStoreStorage:
+        TranslateExecuteStoreStorage(subnode_view);
         break;
       case CommandType::ExecuteStoreScore:
         TranslateExecuteStoreScore(subnode_view);
@@ -412,6 +442,10 @@ void TranslateFunction(NodeView& node_view, std::string_view function_prefix) {
   }
 
   node_view.Append(function_body);
+
+  if (node_view.ArgsSize() == 2) {
+    node_view.Append(" with storage "sv, node_view.Extract(1));
+  }
 }
 
 void TranslateGamemode(NodeView& node_view) {
@@ -547,6 +581,10 @@ void TranslateScoreboardObjectivesSet(NodeView& node_view) {
 void TranslateScoreboardPlayers(NodeView& node_view) {
   std::string_view mode = node_view.Extract(0);
 
+  if (mode == "opr") {
+    mode = "operation";
+  }
+
   node_view.Append(
     "scoreboard players "sv,
     mode, " "sv
@@ -556,11 +594,18 @@ void TranslateScoreboardPlayers(NodeView& node_view) {
 
   node_view.Append(" "sv, node_view.Extract(current_arg)); // objective
 
-  if (mode == "reset") {
+  if (mode == "reset" || mode == "get") {
     return;
   }
 
   node_view.Append(" "sv, node_view.Extract(current_arg + 1));
+
+  if (mode == "operation") {
+    node_view.Append(
+      " "sv, node_view.Extract(current_arg + 2),  // second entity
+      " "sv, node_view.Extract(current_arg)       // same objective
+    );
+  }
 }
 
 void TranslateSetblock(NodeView& node_view) {

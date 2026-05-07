@@ -232,12 +232,8 @@ namespace {
     }
   }
 
-  void AppendItem(NodeView& node_view, const IdWithDataPtr& id_with_data_ptr, bool about, bool comma_required) {
-    if (comma_required) {
-      node_view.PushBack(',');
-    }
-
-    node_view.Append(about ? "i"sv : "I"sv, "tem:{id:\"minecraft:"sv, node_view.Extract(id_with_data_ptr->identifier), "\""sv);
+  void TranslateItem(NodeView& node_view, const IdWithDataPtr& id_with_data_ptr) {
+    node_view.Append("{id:\"minecraft:"sv, node_view.Extract(id_with_data_ptr->identifier), "\""sv);
   
     if (!id_with_data_ptr->units.empty()) {
       node_view.Append(",components:{");
@@ -273,7 +269,8 @@ namespace {
                         std::vector<Equipment>& equipment, std::vector<BaseToken>& tags, std::vector<Chance>& chances, bool comma_required) {
     switch (unit.key.type) {
       case TokenType::About:
-        AppendItem(node_view, std::get<IdWithDataPtr>(unit.value), true, comma_required);
+        AppendUnit(node_view, comma_required, "item:"sv);
+        TranslateItem(node_view, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::AttackDamage:
         attributes.emplace_back(unit.key, std::get<BaseToken>(unit.value));
@@ -331,7 +328,8 @@ namespace {
         AppendUnit(node_view, comma_required, "Invulnerable:1b"sv);
         break;
       case TokenType::Item:
-        AppendItem(node_view, std::get<IdWithDataPtr>(unit.value), false, comma_required);
+        AppendUnit(node_view, comma_required, "Item:"sv);
+        TranslateItem(node_view, std::get<IdWithDataPtr>(unit.value));
         break;
       case TokenType::LeftHand:
         equipment.emplace_back(unit.key, std::get<IdWithDataPtr>(unit.value));
@@ -379,6 +377,13 @@ namespace {
       case TokenType::Rotation:
         AppendUnit(node_view, comma_required, "Rotation:"sv);
         TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        break;
+      case TokenType::SelectedItem:
+        AppendUnit(node_view, comma_required, "SelectedItem:"sv);
+        TranslateItem(node_view, std::get<IdWithDataPtr>(unit.value));
+        break;
+      case TokenType::Shine:
+        AppendUnit(node_view, comma_required, "Glowing:1b"sv);
         break;
       case TokenType::Silent:
         AppendUnit(node_view, comma_required, "Silent:1b"sv);
