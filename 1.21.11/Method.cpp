@@ -209,6 +209,17 @@ void TranslateAdvancement(NodeView& node_view) {
   node_view.Append(" only "sv, node_view.Extract(current_arg)); // advancement name
 }
 
+void TranslateAttribute(NodeView& node_view) {
+  node_view.Append("attribute ");
+
+  IndexType current_arg = TranslateEntity(node_view, 0);
+
+  node_view.Append(
+    " "sv, node_view.Extract(current_arg),              // attribute name
+    " base set "sv, node_view.Extract(current_arg + 1)  // value
+  );
+}
+
 void TranslateBossbarAdd(NodeView& node_view) {
   node_view.Append(
     "bossbar add "sv,
@@ -246,10 +257,18 @@ void TranslateClear(NodeView& node_view) {
 
   IndexType current_arg = TranslateEntity(node_view, 0);
 
-  node_view.Append(" "sv, node_view.Extract(current_arg)); // item
+  const auto& id_with_data_ptr = node_view.Get<SelectorIdWithDataPtrNode*>()->id_with_data_ptr;
 
-  if (node_view.ArgsSize() == current_arg + 2) {
-    node_view.Append(" "sv, node_view.Extract(current_arg + 1)); // count
+  node_view.Append(" "sv, node_view.Extract(id_with_data_ptr->identifier)); // item
+
+  if (!id_with_data_ptr->units.empty()) {
+    node_view.PushBack('[');
+    TranslateItemData(node_view, id_with_data_ptr->units, "=");
+    node_view.PushBack(']');
+  }
+
+  if (node_view.ArgsSize() == current_arg + 1) {
+    node_view.Append(" "sv, node_view.Extract(current_arg)); // count
   }
 }
 

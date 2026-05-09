@@ -6,6 +6,8 @@
 extern "C" {
   void TranslateAdvancement(NodeView&);
 
+  void TranslateAttribute(NodeView&);
+
   void TranslateBossbarAdd(NodeView&);
 
   void TranslateBossbarSet(NodeView&);

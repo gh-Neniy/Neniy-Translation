@@ -10,15 +10,11 @@ namespace {
       node_view.Append(",color:\""sv, node_view.Extract(unit.color), "\""sv);
     }
     
-    node_view.Append(",italic:"sv, unit.italic ? "true"sv : "false"sv);
-
-    if (unit.bold) {
-      node_view.Append(",bold:true");
-    }
-
-    if (unit.hieroglyph) {
-      node_view.Append(",font:\"minecraft:alt\"");
-    }
+    node_view.Append(
+      ",italic:"sv, unit.italic ? "true"sv : "false"sv,
+      ",bold:"sv, unit.bold ? "true"sv : "false"sv,
+      ",font:"sv, unit.hieroglyph ? "\"minecraft:alt\""sv : "\"minecraft:uniform\""sv
+    );
   }
 }
 

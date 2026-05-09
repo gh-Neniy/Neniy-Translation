@@ -321,6 +321,9 @@ namespace {
       case TokenType::InGround:
         AppendUnit(node_view, comma_required, "inGround:1b"sv);
         break;
+      case TokenType::Interaction:
+        AppendUnit(node_view, comma_required, "interaction:{}"sv);
+        break;
       case TokenType::Invisible:
         AppendUnit(node_view, comma_required, "Invisible:1b"sv);
         break;
