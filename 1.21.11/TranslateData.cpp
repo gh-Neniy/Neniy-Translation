@@ -192,40 +192,40 @@ namespace {
   void BlockDataSwitch(NodeView& node_view, const DataUnit& unit, std::string_view separator, std::vector<Text>& sign_msgs, bool comma_required) {
     switch (unit.key.type) {
       case TokenType::Axis:
-        AppendUnit(node_view, comma_required, "axis"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
+        AppendUnit(node_view, comma_required, "axis"sv, separator, "\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\""sv);
         break;
       case TokenType::East:
-        AppendUnit(node_view, comma_required, "east"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "east"sv, separator, "\"true\""sv);
         break;
       case TokenType::Facing:
-        AppendUnit(node_view, comma_required, "facing"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
+        AppendUnit(node_view, comma_required, "facing"sv, separator, "\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\""sv);
         break;
       case TokenType::Half:
-        AppendUnit(node_view, comma_required, "half"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
+        AppendUnit(node_view, comma_required, "half"sv, separator, "\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\""sv);
         break;
       case TokenType::Level:
-        AppendUnit(node_view, comma_required, "level"sv, separator, node_view.Extract(std::get<BaseToken>(unit.value)));
+        AppendUnit(node_view, comma_required, "level"sv, separator, "\""sv, node_view.Extract(std::get<BaseToken>(unit.value)), "\""sv);
         break;
       case TokenType::Lit:
-        AppendUnit(node_view, comma_required, "lit"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "lit"sv, separator, "\"true\""sv);
         break;
       case TokenType::North:
-        AppendUnit(node_view, comma_required, "north"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "north"sv, separator, "\"true\""sv);
         break;
       case TokenType::Open:
-        AppendUnit(node_view, comma_required, "open"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "open"sv, separator, "\"true\""sv);
         break;
       case TokenType::Powered:
-        AppendUnit(node_view, comma_required, "powered"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "powered"sv, separator, "\"true\""sv);
         break;
       case TokenType::Sign:
         sign_msgs = std::get<std::vector<Text>>(unit.value);
         break;
       case TokenType::South:
-        AppendUnit(node_view, comma_required, "south"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "south"sv, separator, "\"true\""sv);
         break;
       case TokenType::West:
-        AppendUnit(node_view, comma_required, "west"sv, separator, "true"sv);
+        AppendUnit(node_view, comma_required, "west"sv, separator, "\"true\""sv);
         break;
       default:
         throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in block data"sv));
@@ -312,6 +312,9 @@ namespace {
         AppendUnit(node_view, comma_required, "Health:"sv, node_view.Extract(points));
         break;
       }
+      case TokenType::Height:
+        AppendUnit(node_view, comma_required, "height:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
+        break;
       case TokenType::HurtTime:
         AppendUnit(node_view, comma_required, "HurtTime:"sv, node_view.Extract(std::get<BaseToken>(unit.value)), "s"sv);
         break;
@@ -368,6 +371,11 @@ namespace {
       case TokenType::PickupDelay:
         AppendUnit(node_view, comma_required, "PickupDelay:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
+      case TokenType::Scale:
+        AppendUnit(node_view, comma_required, "transformation:{scale:"sv);
+        TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        node_view.PushBack('}');
+        break;
       case TokenType::Stability:
         attributes.emplace_back(unit.key, std::get<BaseToken>(unit.value));
         break;
@@ -399,6 +407,9 @@ namespace {
         break;
       case TokenType::TeleportDuration:
         AppendUnit(node_view, comma_required, "teleport_duration:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
+        break;
+      case TokenType::Width:
+        AppendUnit(node_view, comma_required, "width:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
         break;
       default:
         throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in entity data"sv));
