@@ -3,6 +3,8 @@
 #include "asset/Loader.hpp"
 #include "trans/NodeView.hpp"
 
+#include <filesystem>
+
 extern "C" {
   void TranslateAdvancement(NodeView&);
 
@@ -24,11 +26,11 @@ extern "C" {
 
   void TranslateEffect(NodeView&);
 
-  void TranslateExecute(NodeView&, std::string_view function_prefix, const Loader& loader);
+  void TranslateExecute(NodeView&, const Loader&, const std::filesystem::path&);
 
   void TranslateFill(NodeView&);
 
-  void TranslateFunction(NodeView&, std::string_view function_prefix);
+  void TranslateFunction(NodeView&, const std::filesystem::path&);
 
   void TranslateGamemode(NodeView&);
 

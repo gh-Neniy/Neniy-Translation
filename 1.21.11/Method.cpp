@@ -348,7 +348,7 @@ void TranslateEffect(NodeView& node_view) {
   );
 }
 
-void TranslateExecute(NodeView& node_view, std::string_view function_prefix, const Loader& loader) {
+void TranslateExecute(NodeView& node_view, const Loader& loader, const std::filesystem::path& path) {
   node_view.Append("execute");
 
   auto raw_ptr = node_view.Get<ExecuteNode*>();
@@ -416,7 +416,7 @@ void TranslateExecute(NodeView& node_view, std::string_view function_prefix, con
 
   NodeView main_view(node_view.Result(), raw_ptr->main_node, node_view.Source());
 
-  ChooseTranslate(main_view, function_prefix, loader);
+  ChooseTranslate(main_view, loader, path);
 }
 
 void TranslateFill(NodeView& node_view) {
@@ -444,23 +444,36 @@ void TranslateFill(NodeView& node_view) {
   }
 }
 
-void TranslateFunction(NodeView& node_view, std::string_view function_prefix) {
+void TranslateFunction(NodeView& node_view, const std::filesystem::path& path) {
   node_view.Append("function ");
 
   std::string_view function_body = node_view.Extract(0);
+  auto path_check = path;
 
-  if (!function_prefix.empty()) {
-    if (function_body.find(':') != std::string_view::npos) {
-      throw std::runtime_error("Translation error - double prefix in function body");
-    }
-
-    node_view.Append(function_prefix, ":"sv);
-
-  } else if (function_body.find(':') == std::string_view::npos) {
-    throw std::runtime_error("Translation error - no prefix found in function body");
+  while (path_check.filename() != "function" && path_check.has_parent_path()) {
+    path_check = path_check.parent_path();
   }
 
-  node_view.Append(function_body);
+  if (path_check.filename() != "function") {
+    throw std::runtime_error("Parent directory \"function\" not found");
+  }
+
+  std::filesystem::path target_path = path_check / function_body;
+  target_path.replace_extension(".neniy");
+
+  if (!std::filesystem::is_regular_file(target_path)) {
+    throw std::runtime_error(Concat("Translation error - no such function: "sv, function_body));
+  }
+
+  while (path_check.has_parent_path() && path_check.parent_path().filename() != "data") {
+    path_check = path_check.parent_path();
+  }
+
+  if (path_check.parent_path().filename() != "data") {
+    throw std::runtime_error("Translation error - Parent directory \"data\" not found");
+  }
+
+  node_view.Append(Sv(path_check.filename().native()), ":"sv, function_body);
 
   if (node_view.ArgsSize() == 2) {
     node_view.Append(" with storage "sv, node_view.Extract(1));
