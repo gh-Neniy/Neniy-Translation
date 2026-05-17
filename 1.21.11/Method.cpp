@@ -1,5 +1,6 @@
 #include "lexic/Token.hpp"
 #include "trans/Translate.hpp"
+#include "Aux.hpp"
 #include "TranslateData.hpp"
 #include "TranslateSelector.hpp"
 #include "TranslateText.hpp"
@@ -322,10 +323,15 @@ void TranslateData(NodeView& node_view) {
     return;
   }
 
-  node_view.Append(
-    " "sv, node_view.Extract(current_arg + 1),                // mode
-    " value \""sv, node_view.Extract(current_arg + 2), "\""sv // value
-  );
+  node_view.Append(" "sv, node_view.Extract(current_arg + 1), " value "sv); // modify mode
+
+  auto raw_ptr = node_view.Get<SelectorListTypeNode*>();
+
+  if (raw_ptr->list.empty()) {
+    node_view.Append("\""sv, node_view.Extract(current_arg + 2), "\""sv);
+  } else {
+    TranslateNumericList(node_view, raw_ptr->list, "f");
+  }
 }
 
 void TranslateEffect(NodeView& node_view) {

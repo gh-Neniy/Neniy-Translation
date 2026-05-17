@@ -1,4 +1,5 @@
 #include "main/Concat.hpp"
+#include "Aux.hpp"
 #include "TranslateText.hpp"
 #include "TranslateData.hpp"
 
@@ -126,20 +127,6 @@ namespace {
       }
 
       node_view.Append(node_view.Extract(tags[i]));
-    }
-
-    node_view.PushBack(']');
-  }
-
-  void TranslateNumericList(NodeView& node_view, const ListType& list) {
-    node_view.PushBack('[');
-
-    for (std::size_t i = 0; i < list.size(); ++i) {
-      if (i > 0) {
-        node_view.PushBack(',');
-      }
-
-      node_view.Append(node_view.Extract(list[i].key));
     }
 
     node_view.PushBack(']');
@@ -373,7 +360,7 @@ namespace {
         break;
       case TokenType::Scale:
         AppendUnit(node_view, comma_required, "transformation:{scale:"sv);
-        TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        TranslateNumericList(node_view, std::get<ListType>(unit.value), "f");
         node_view.PushBack('}');
         break;
       case TokenType::Stability:
@@ -387,7 +374,7 @@ namespace {
         break;
       case TokenType::Rotation:
         AppendUnit(node_view, comma_required, "Rotation:"sv);
-        TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        TranslateNumericList(node_view, std::get<ListType>(unit.value), "f");
         break;
       case TokenType::SelectedItem:
         AppendUnit(node_view, comma_required, "SelectedItem:"sv);
@@ -407,6 +394,10 @@ namespace {
         break;
       case TokenType::TeleportDuration:
         AppendUnit(node_view, comma_required, "teleport_duration:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
+        break;
+      case TokenType::Text:
+        AppendUnit(node_view, comma_required, "text:"sv);
+        TranslateText(node_view, std::get<Text>(unit.value));
         break;
       case TokenType::Width:
         AppendUnit(node_view, comma_required, "width:"sv, node_view.Extract(std::get<BaseToken>(unit.value)));
@@ -486,7 +477,7 @@ namespace {
         break;
       case TokenType::FromColor:
         AppendUnit(node_view, comma_required, "from_color:"sv);
-        TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        TranslateNumericList(node_view, std::get<ListType>(unit.value), "f");
         break;
       case TokenType::Item:
         AppendUnit(node_view, comma_required, "item:"sv, node_view.Extract(std::get<IdWithDataPtr>(unit.value)->identifier));
@@ -496,7 +487,7 @@ namespace {
         break;
       case TokenType::ToColor:
         AppendUnit(node_view, comma_required, "to_color:"sv);
-        TranslateNumericList(node_view, std::get<ListType>(unit.value));
+        TranslateNumericList(node_view, std::get<ListType>(unit.value), "f");
         break;
       default:
         throw std::runtime_error(Concat("Translation error - unknown key "sv, node_view.Extract(unit.key), " in particle data"sv));
